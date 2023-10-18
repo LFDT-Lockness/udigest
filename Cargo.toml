@@ -7,3 +7,7 @@ edition = "2021"
 
 [dependencies]
 digest = { version = "0.10", default-features = false }
+
+[features]
+std = ["alloc"]
+alloc = []

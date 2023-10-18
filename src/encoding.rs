@@ -190,7 +190,7 @@ pub trait Buffer {
     fn write(&mut self, bytes: &[u8]);
 }
 
-impl<D: digest::Update> Buffer for D {
+impl<D: digest::Digest> Buffer for D {
     fn write(&mut self, bytes: &[u8]) {
         self.update(bytes)
     }
