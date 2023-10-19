@@ -451,7 +451,11 @@ impl<'b, B: Buffer> Drop for EncodeList<'b, B> {
     }
 }
 
-fn encode_len(buffer: &mut impl Buffer, len: usize) {
+/// Encodes length of list or leaf
+///
+/// Altough we expose how the length is encoded, normally you should use [EncodeList]
+/// and [EncodeLeaf] which use this function internally
+pub fn encode_len(buffer: &mut impl Buffer, len: usize) {
     match u32::try_from(len) {
         Ok(len_32) => {
             buffer.write(&len_32.to_be_bytes());

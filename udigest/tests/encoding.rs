@@ -156,3 +156,19 @@ fn encode_struct() {
 
     assert_eq!(buffer.0, expected);
 }
+
+#[test]
+fn encode_biglen() {
+    assert_eq!(
+        usize::BITS,
+        64,
+        "this test needs to be executed on 64-bits platform"
+    );
+
+    let len = 0x0100000000_usize;
+
+    let mut buf = VecBuf(vec![]);
+    encode_len(&mut buf, len);
+
+    assert_eq!(buf.0, [1, 0, 0, 0, 0, 5, BIGLEN]);
+}
