@@ -20,7 +20,7 @@
 //! that grammar to have an unambiguous encoding. Below, we will show how Rust structures
 //! can be mapped onto the lists, and then we descrive how exactly encoding works.
 //!
-//! ## Rust types
+//! # Mapping Rust types onto lists
 //!
 //! ### Structure
 //! Structures can be encoded as a list of field names followed by field values. For instance, a structure
@@ -68,12 +68,12 @@
 //! Lists can be trivially encoded into bytes as long as each item in the list is encodable.
 //! [EncodeList] can be used for that.
 //!
-//! ### Others
-//! Other values can be encoded as leafs as long as they can be unambiguously converted to bytes. For instance,
-//! any integer can be converted into bytes using [to_be_bytes](u32::to_be_bytes). String can be
-//! [converted to bytes](str::as_bytes) as well, etc.
+//! ### Primitive types
+//! Primitive values can be encoded as bytestrings as long as they can be unambiguously converted to bytes.
+//! For instance, any integer can be converted into bytes using [to_be_bytes](u32::to_be_bytes). Strings can
+//! be [converted to bytes](str::as_bytes) as well, and so on.
 //!
-//! ## Domain separation
+//! ### Domain separation
 //! When value is encoded into bytes, it loses its type. For instance, "abcd" bytestring may correspond to
 //! `Vec<u8>`, `String`, `u32` and so on. When it's required to distinguish one type from another, domain
 //! separation tag can be used.
@@ -82,7 +82,7 @@
 //!
 //! It's recommended to specify the tag only for high-level structures.
 //!
-//! # Encoding
+//! # Encoding lists into bytes
 //! Generally, when a value is encoded, firstly we write its byte representation and then append its metadata
 //! like length and type (leaf of list). Writing a length after the value makes it possible to encode byte strings
 //! and lists the length of which is not known in advance.
@@ -115,7 +115,7 @@
 //! BIGLEN   ::= 6
 //! ```
 //!
-//! ## Example
+//! # Example
 //!
 //! A structured data below
 //! ```rust
@@ -153,6 +153,8 @@
 //! // Merges the last 6 elements from the stack into a list
 //! 6_u32 LEN_32 LIST
 //! ```
+//!
+//! where `LEAF`, `LIST`, and `LEN_32` are constants [defined above](#encoding-lists-into-bytes).
 
 /// Control symbol
 ///

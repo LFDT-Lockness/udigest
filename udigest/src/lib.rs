@@ -11,7 +11,12 @@
 //! * Containers: `Box`, `Arc`, `Rc`, `Cow`, `Option`, `Result`
 //! * Collections: arrays, slices, `Vec`, `LinkedList`, `VecDeque`, `BTreeSet`, `BTreeMap`
 //!
-//! The trait can be implemented for the struct using a macro:
+//! The trait is intentionally not implemented for certain types:
+//!
+//! * `HashMap`, `HashSet` as they can not be traversed in determenistic order
+//! * `usize`, `isize` as their byte size varies on differnet platforms
+//!
+//! The `Digestable` trait can be implemented for the struct using a macro:
 //! ```rust
 //! #[derive(udigest::Digestable)]
 //! struct Person {
