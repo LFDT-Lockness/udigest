@@ -39,30 +39,30 @@ fn simple_encoding() {
     list.add_leaf().chain(b"abc");
     list.finish();
 
-    let mut expected = vec![];
-
-    // "1234" 4_u32 LEN_32 LEAF
-    expected.extend_from_slice(b"1234");
-    expected.extend_from_slice(&4_u32.to_be_bytes());
-    expected.extend_from_slice(&[LEN_32, LEAF]);
-    // "1" 1_u32 LEN_32 LEAF
-    expected.extend_from_slice(b"1");
-    expected.extend_from_slice(&1_u32.to_be_bytes());
-    expected.extend_from_slice(&[LEN_32, LEAF]);
-    // "2" 1_u32 LEN_32 LEAF
-    expected.extend_from_slice(b"2");
-    expected.extend_from_slice(&1_u32.to_be_bytes());
-    expected.extend_from_slice(&[LEN_32, LEAF]);
-    // 2_u32 LEN_32 LIST
-    expected.extend_from_slice(&2_u32.to_be_bytes());
-    expected.extend_from_slice(&[LEN_32, LIST]);
-    // "abc" 3_u32 LEN_32 LEAF
-    expected.extend_from_slice(b"abc");
-    expected.extend_from_slice(&3_u32.to_be_bytes());
-    expected.extend_from_slice(&[LEN_32, LEAF]);
-    // 3_u32 LEN_32 LIST
-    expected.extend_from_slice(&3_u32.to_be_bytes());
-    expected.extend_from_slice(&[LEN_32, LIST]);
+    let expected = concat_bytes_into_vec!(
+        // "1234" 4_u32 LEN_32 LEAF
+        b"1234",
+        4_u32.to_be_bytes(),
+        [LEN_32, LEAF],
+        // "1" 1_u32 LEN_32 LEAF
+        b"1",
+        1_u32.to_be_bytes(),
+        [LEN_32, LEAF],
+        // "2" 1_u32 LEN_32 LEAF
+        b"2",
+        1_u32.to_be_bytes(),
+        [LEN_32, LEAF],
+        // 2_u32 LEN_32 LIST
+        2_u32.to_be_bytes(),
+        [LEN_32, LIST],
+        // "abc" 3_u32 LEN_32 LEAF
+        b"abc",
+        3_u32.to_be_bytes(),
+        [LEN_32, LEAF],
+        // 3_u32 LEN_32 LIST
+        3_u32.to_be_bytes(),
+        [LEN_32, LIST]
+    );
 
     assert_eq!(buffer.0, expected);
 }
@@ -75,27 +75,27 @@ fn encode_with_tag() {
         .with_tag(b"SOME_TAG")
         .chain(b"123");
 
-    let mut expected = vec![];
-    expected.extend_from_slice(b"123");
-    expected.extend_from_slice(&3_u32.to_be_bytes());
-    expected.extend_from_slice(&[LEN_32]);
-    expected.extend_from_slice(b"SOME_TAG");
-    expected.extend_from_slice(&8_u32.to_be_bytes());
-    expected.extend_from_slice(&[LEN_32, LEAF_CTX]);
-
+    let expected = concat_bytes_into_vec!(
+        b"123",
+        3_u32.to_be_bytes(),
+        [LEN_32],
+        b"SOME_TAG",
+        8_u32.to_be_bytes(),
+        [LEN_32, LEAF_CTX]
+    );
     assert_eq!(buffer.0, expected);
 
     // Encode `[]` with tag "SOME_TAG"
     let mut buffer = VecBuf(vec![]);
     EncodeList::new(&mut buffer).with_tag(b"SOME_TAG");
 
-    let mut expected = vec![];
-    expected.extend_from_slice(&0_u32.to_be_bytes());
-    expected.extend_from_slice(&[LEN_32]);
-    expected.extend_from_slice(b"SOME_TAG");
-    expected.extend_from_slice(&8_u32.to_be_bytes());
-    expected.extend_from_slice(&[LEN_32, LIST_CTX]);
-
+    let expected = concat_bytes_into_vec!(
+        0_u32.to_be_bytes(),
+        [LEN_32],
+        b"SOME_TAG",
+        8_u32.to_be_bytes(),
+        [LEN_32, LIST_CTX]
+    );
     assert_eq!(buffer.0, expected);
 }
 
@@ -121,37 +121,37 @@ fn encode_struct() {
         // "name" 4_u32 LEN_32 LEAF
         "name",
         4_u32.to_be_bytes(),
-        &[LEN_32, LEAF],
+        [LEN_32, LEAF],
         // "Alice" 5_u32 LEN_32 LEAF
         "Alice",
         5_u32.to_be_bytes(),
-        &[LEN_32, LEAF],
+        [LEN_32, LEAF],
         // "skills" 6_u32 LEN_32 LEAF
         "skills",
         6_u32.to_be_bytes(),
-        &[LEN_32, LEAF],
+        [LEN_32, LEAF],
         // "math" 4_u32 LEN_32 LEAF
         "math",
         4_u32.to_be_bytes(),
-        &[LEN_32, LEAF],
+        [LEN_32, LEAF],
         // "crypto" 6_u32 LEN_32 LEAF
         "crypto",
         6_u32.to_be_bytes(),
-        &[LEN_32, LEAF],
+        [LEN_32, LEAF],
         // 2_u32 LEN_32 LIST
         2_u32.to_be_bytes(),
-        &[LEN_32, LIST],
+        [LEN_32, LIST],
         // "job_title" 9_u32 LEN_32 LEAF
         "job_title",
         9_u32.to_be_bytes(),
-        &[LEN_32, LEAF],
+        [LEN_32, LEAF],
         // "cryptographer" 13_u32 LEN_32 LEAF
         "cryptographer",
         13_u32.to_be_bytes(),
-        &[LEN_32, LEAF],
+        [LEN_32, LEAF],
         // 6_u32 LEN_32 LIST
         6_u32.to_be_bytes(),
-        &[LEN_32, LIST],
+        [LEN_32, LIST],
     );
 
     assert_eq!(buffer.0, expected);
