@@ -43,103 +43,107 @@ fn digestable_inner(input: syn::DeriveInput) -> Result<proc_macro2::TokenStream>
         }
     }
 
-    let s = match input.data {
-        syn::Data::Struct(s) => s,
-        syn::Data::Enum(e) => {
-            return Err(Error::new(
-                e.enum_token.span,
-                "enums support is not implemented yet",
-            ));
-        }
-        syn::Data::Union(u) => {
-            return Err(Error::new(u.union_token.span, "unions are not supported"));
-        }
-    };
-
-    let mut struct_fields = vec![];
-    for (index, field) in (0..).zip(s.fields.iter()) {
-        let mut field_attrs = FieldAttrs::default();
-
-        let mem = field
-            .ident
-            .clone()
-            .map(syn::Member::Named)
-            .unwrap_or_else(|| {
-                syn::Index {
-                    index,
-                    span: field.span(),
-                }
-                .into()
-            });
-
-        for attr in &field.attrs {
-            let Some(attr) = parse_attribute(attr)? else {
-                continue;
-            };
-            match attr {
-                attrs::Attr::AsBytes(_) if field_attrs.as_bytes.is_some() => {
-                    return Err(Error::new(attr.kw_span(), "attribute is duplicated"))
-                }
-                attrs::Attr::AsBytes(attr) => {
-                    field_attrs.as_bytes = Some(attr);
-                }
-                attrs::Attr::Skip(_) if field_attrs.skip.is_some() => {
-                    return Err(Error::new(attr.kw_span(), "attribute is duplicated"));
-                }
-                attrs::Attr::Skip(attr) => {
-                    field_attrs.skip = Some(attr);
-                }
-                _ => return Err(Error::new(attr.kw_span(), "attribute is not allowed here")),
-            }
-        }
-
-        struct_fields.push(Field {
-            attrs: field_attrs,
-            mem,
-        })
+    match input.data {
+        syn::Data::Struct(s) => process_struct(&container_attrs, &input.ident, &input.generics, &s),
+        syn::Data::Enum(e) => process_enum(&container_attrs, &input.ident, &input.generics, &e),
+        syn::Data::Union(u) => Err(Error::new(u.union_token.span, "unions are not supported")),
     }
-
-    generate_impl_for_struct(
-        &container_attrs,
-        &input.ident,
-        &input.generics,
-        &struct_fields,
-    )
 }
 
-fn generate_impl_for_struct(
+fn process_enum(
     attrs: &ContainerAttrs,
-    struct_name: &syn::Ident,
-    struct_generics: &syn::Generics,
-    struct_fields: &[Field],
+    name: &syn::Ident,
+    generics: &syn::Generics,
+    e: &syn::DataEnum,
+) -> Result<proc_macro2::TokenStream> {
+    let variants = e
+        .variants
+        .iter()
+        .map(|v| {
+            Ok(Variant {
+                name: v.ident.clone(),
+                ty: match &v.fields {
+                    syn::Fields::Named(_) => VariantType::Named,
+                    syn::Fields::Unnamed(_) => VariantType::Unnamed,
+                    syn::Fields::Unit => VariantType::Unit,
+                },
+                fields: (0..)
+                    .zip(v.fields.iter())
+                    .map(|(i, f)| process_field(i, f))
+                    .collect::<Result<Vec<_>>>()?,
+            })
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    generate_impl_for_enum(attrs, name, generics, &variants)
+}
+
+fn process_struct(
+    container_attrs: &ContainerAttrs,
+    name: &syn::Ident,
+    generics: &syn::Generics,
+    s: &syn::DataStruct,
+) -> Result<proc_macro2::TokenStream> {
+    let struct_fields = (0..)
+        .zip(s.fields.iter())
+        .map(|(i, f)| process_field(i, f))
+        .collect::<Result<Vec<_>>>()?;
+
+    generate_impl_for_struct(&container_attrs, &name, &generics, &struct_fields)
+}
+
+fn process_field(index: u32, field: &syn::Field) -> Result<Field> {
+    let mut field_attrs = FieldAttrs::default();
+
+    let mem = field
+        .ident
+        .clone()
+        .map(syn::Member::Named)
+        .unwrap_or_else(|| {
+            syn::Index {
+                index,
+                span: field.span(),
+            }
+            .into()
+        });
+
+    for attr in &field.attrs {
+        let Some(attr) = parse_attribute(attr)? else {
+            continue;
+        };
+        match attr {
+            attrs::Attr::AsBytes(_) if field_attrs.as_bytes.is_some() => {
+                return Err(Error::new(attr.kw_span(), "attribute is duplicated"))
+            }
+            attrs::Attr::AsBytes(attr) => {
+                field_attrs.as_bytes = Some(attr);
+            }
+            attrs::Attr::Skip(_) if field_attrs.skip.is_some() => {
+                return Err(Error::new(attr.kw_span(), "attribute is duplicated"));
+            }
+            attrs::Attr::Skip(attr) => {
+                field_attrs.skip = Some(attr);
+            }
+            _ => return Err(Error::new(attr.kw_span(), "attribute is not allowed here")),
+        }
+    }
+
+    Ok(Field {
+        attrs: field_attrs,
+        mem,
+    })
+}
+
+fn generate_impl_for_enum(
+    attrs: &ContainerAttrs,
+    enum_name: &syn::Ident,
+    enum_generics: &syn::Generics,
+    enum_variants: &[Variant],
 ) -> Result<proc_macro2::TokenStream> {
     let root_path = attrs.get_root_path();
-    let (impl_generics, ty_generics, where_clause) = struct_generics.split_for_impl();
+    let (impl_generics, ty_generics, _) = enum_generics.split_for_impl();
 
-    let where_clause = match &attrs.bound {
-        Some(bound) => {
-            let overriden_where_clause: proc_macro2::TokenStream = bound
-                .value
-                .value()
-                .parse()
-                .map_err(|err| Error::new(bound.value.span(), err))?;
-            quote_spanned! {bound.value.span() =>
-                where #overriden_where_clause
-            }
-        }
-        None => {
-            let predicates = where_clause.map(|w| &w.predicates);
-
-            let generated_predicates = struct_generics.type_params().map(|g| {
-                let ident = &g.ident;
-                quote! {#ident: #root_path::Digestable,}
-            });
-
-            quote! {
-                where #(#generated_predicates)* #predicates
-            }
-        }
-    };
+    let where_clause = make_where_clause(attrs, enum_generics)?;
 
     let specify_tag = attrs.tag.as_ref().map(|attrs::Tag { value, .. }| {
         quote_spanned! {value.span() =>
@@ -149,33 +153,106 @@ fn generate_impl_for_struct(
         }
     });
 
+    let encoder_var = syn::Ident::new("encoder", proc_macro2::Span::call_site());
+    let match_expr = if !enum_variants.is_empty() {
+        let match_branches = enum_variants.iter().map(|v| {
+            let variant_name = &v.name;
+            let field_bindings = (0..v.fields.len())
+                .map(|i| syn::Ident::new(&format!("field{i}"), proc_macro2::Span::call_site()))
+                .collect::<Vec<_>>();
+            let pattern = match v.ty {
+                VariantType::Named => {
+                    let fields = v.fields.iter().zip(&field_bindings).map(|(f, binding)| {
+                        let field_name = &f.mem;
+                        quote! { #field_name: #binding }
+                    });
+                    quote! { {#(#fields),*} }
+                }
+                VariantType::Unnamed => {
+                    let fields = field_bindings.iter().map(|binding| {
+                        quote! {#binding}
+                    });
+                    quote! { (#(#fields),*) }
+                }
+                VariantType::Unit => {
+                    quote!()
+                }
+            };
+
+            let encode_fields = field_bindings.iter().zip(&v.fields).map(|(binding, f)| {
+                encode_field(
+                    &root_path,
+                    &encoder_var,
+                    &f.attrs,
+                    f.mem.span(),
+                    &f.stringify_field_name(),
+                    &quote! { #binding },
+                )
+            });
+
+            let variant_name_str = variant_name.to_string();
+            quote_spanned! {variant_name.span() =>
+                #enum_name::#variant_name #pattern => {
+                    let mut #encoder_var = #encoder_var.with_variant(#variant_name_str);
+                    #specify_tag
+                    #(#encode_fields)*
+                }
+            }
+        });
+        quote! {
+            match self {
+                #(#match_branches)*
+            }
+        }
+    } else {
+        quote! {
+            match *self {}
+        }
+    };
+
+    Ok(quote! {
+        impl #impl_generics #root_path::Digestable for #enum_name #ty_generics #where_clause {
+            fn unambiguously_encode<B>(&self, encoder: #root_path::encoding::EncodeValue<B>)
+            where
+                B: #root_path::Buffer
+            {
+                let #encoder_var = encoder.encode_enum();
+                #match_expr
+            }
+        }
+    })
+}
+
+fn generate_impl_for_struct(
+    attrs: &ContainerAttrs,
+    struct_name: &syn::Ident,
+    struct_generics: &syn::Generics,
+    struct_fields: &[Field],
+) -> Result<proc_macro2::TokenStream> {
+    let root_path = attrs.get_root_path();
+    let (impl_generics, ty_generics, _) = struct_generics.split_for_impl();
+
+    let where_clause = make_where_clause(attrs, struct_generics)?;
+
+    let specify_tag = attrs.tag.as_ref().map(|attrs::Tag { value, .. }| {
+        quote_spanned! {value.span() =>
+            let tag = #value;
+            let tag = AsRef::<[u8]>::as_ref(&tag);
+            encoder.set_tag(tag);
+        }
+    });
+
+    let encoder_var = syn::Ident::new("encoder", proc_macro2::Span::call_site());
     let encode_each_field = struct_fields.iter().map(|f| {
-        if f.attrs.skip.is_some() {
-            return quote! {};
-        }
-
-        let field_name = f.stringify_field_name();
         let mem = &f.mem;
-
-        match &f.attrs.as_bytes {
-            Some(attr) => match &attr.value {
-                Some(func) => quote_spanned! {f.mem.span() => {
-                    let field_encoder = encoder.add_field(#field_name);
-                    let field_bytes = #func(&self.#mem);
-                    let field_bytes = AsRef::<[u8]>::as_ref(field_bytes);
-                    field_encoder.encode_leaf().chain(field_bytes);
-                }},
-                None => quote_spanned!(f.mem.span() => {
-                    let field_encoder = encoder.add_field(#field_name);
-                    let field_bytes: &[u8] = AsRef::<[u8]>::as_ref(&self.#mem);
-                    field_encoder.encode_leaf().chain(field_bytes);
-                }),
-            },
-            None => quote_spanned! {f.mem.span() => {
-                let field_encoder = encoder.add_field(#field_name);
-                #root_path::Digestable::unambiguously_encode(&self.#mem, field_encoder);
-            }},
-        }
+        encode_field(
+            &root_path,
+            &encoder_var,
+            &f.attrs,
+            f.mem.span(),
+            &f.stringify_field_name(),
+            &quote! {&self.#mem},
+        )
     });
 
     Ok(quote! {
@@ -184,10 +261,10 @@ fn generate_impl_for_struct(
             where
                 B: #root_path::Buffer
             {
-                let mut encoder = encoder.encode_struct();
+                let mut #encoder_var = encoder.encode_struct();
                 #specify_tag
                 #(#encode_each_field)*
-                encoder.finish();
+                #encoder_var.finish();
             }
         }
     })
@@ -211,6 +288,85 @@ fn parse_attribute(attr: &syn::Attribute) -> Result<Option<attrs::Attr>> {
         _ => return Ok(None),
     };
     syn::parse2(attr_tokens.clone()).map(Some)
+}
+
+/// Takes the generics defined for the data type, produces a where clause that should
+/// be used for trait implementation
+///
+/// If `bound` attribute is not specified, it takes where clause defined for datatype,
+/// and populates it with constraints `A: Digestable` for every generic type defined for
+/// the structure
+///
+/// If `bound` attribute is specified, it fully overrides the where clause
+fn make_where_clause(
+    attrs: &ContainerAttrs,
+    generics: &syn::Generics,
+) -> Result<proc_macro2::TokenStream> {
+    let root_path = attrs.get_root_path();
+    match &attrs.bound {
+        Some(bound) => {
+            let overriden_where_clause: proc_macro2::TokenStream = bound
+                .value
+                .value()
+                .parse()
+                .map_err(|err| Error::new(bound.value.span(), err))?;
+            Ok(quote_spanned! {bound.value.span() =>
+                where #overriden_where_clause
+            })
+        }
+        None => {
+            let predicates = generics.where_clause.as_ref().map(|w| &w.predicates);
+
+            let generated_predicates = generics.type_params().map(|g| {
+                let ident = &g.ident;
+                quote! {#ident: #root_path::Digestable,}
+            });
+
+            Ok(quote! {
+                where #(#generated_predicates)* #predicates
+            })
+        }
+    }
+}
+
+/// Generates a code that encodes a field into `encoder_var`
+///
+/// `field_name` represents a stringified name of the field, `field_ref` contains
+/// expression that yields a reference to the field. `field_span` specifies a span
+/// of the field, and `field_attrs` specifies field-level attributes.
+///
+/// `root_path` specifies a path to the `udigest` crate.
+fn encode_field(
+    root_path: &attrs::RootPath,
+    encoder_var: &syn::Ident,
+    field_attrs: &FieldAttrs,
+    field_span: proc_macro2::Span,
+    field_name: &str,
+    field_ref: &proc_macro2::TokenStream,
+) -> proc_macro2::TokenStream {
+    if field_attrs.skip.is_some() {
+        return quote! {};
+    }
+
+    match &field_attrs.as_bytes {
+        Some(attr) => match &attr.value {
+            Some(func) => quote_spanned! {field_span => {
+                let field_encoder = #encoder_var.add_field(#field_name);
+                let field_bytes = #func(#field_ref);
+                let field_bytes = AsRef::<[u8]>::as_ref(field_bytes);
+                field_encoder.encode_leaf().chain(field_bytes);
+            }},
+            None => quote_spanned!(field_span => {
+                let field_encoder = #encoder_var.add_field(#field_name);
+                let field_bytes: &[u8] = AsRef::<[u8]>::as_ref(#field_ref);
+                field_encoder.encode_leaf().chain(field_bytes);
+            }),
+        },
+        None => quote_spanned! {field_span => {
+            let field_encoder = #encoder_var.add_field(#field_name);
+            #root_path::Digestable::unambiguously_encode(#field_ref, field_encoder);
+        }},
+    }
 }
 
 #[derive(Default)]
@@ -251,4 +407,17 @@ impl Field {
             syn::Member::Unnamed(index) => index.index.to_string(),
         }
     }
+}
+
+struct Variant {
+    name: syn::Ident,
+    fields: Vec<Field>,
+    ty: VariantType,
+}
+
+#[derive(PartialEq, Eq)]
+enum VariantType {
+    Named,
+    Unnamed,
+    Unit,
 }

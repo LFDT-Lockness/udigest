@@ -84,7 +84,7 @@ impl syn::parse::Parse for Tag {
 pub struct AsBytes {
     pub as_bytes: kw::as_bytes,
     pub eq: Option<syn::Token![=]>,
-    pub value: Option<syn::Path>,
+    pub value: Option<syn::Expr>,
 }
 
 impl syn::parse::Parse for AsBytes {

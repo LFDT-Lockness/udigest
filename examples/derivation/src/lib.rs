@@ -20,3 +20,20 @@ impl SomeValue {
 }
 
 pub struct Empty;
+
+#[derive(udigest::Digestable)]
+pub enum EnumExample {
+    Variant1 {
+        integer: i32,
+        string: String,
+        #[udigest(as_bytes = SomeValue::as_bytes)]
+        something_else: SomeValue,
+    },
+    Variant2(String, #[udigest(as_bytes)] Vec<u8>, #[udigest(skip)] Empty),
+    Vartiant3 {},
+    Variant4(),
+    Vartiant5,
+}
+
+#[derive(udigest::Digestable)]
+pub enum EmptyEnum {}
