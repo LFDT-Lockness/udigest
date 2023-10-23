@@ -43,6 +43,9 @@ extern crate alloc;
 
 pub use encoding::Buffer;
 
+#[cfg(feature = "derive")]
+pub use udigest_derive::Digestable;
+
 pub mod encoding;
 
 /// Unambiguously digests structured data
@@ -308,5 +311,12 @@ where
 {
     fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
         self.as_ref().unambiguously_encode(encoder);
+    }
+}
+
+impl<T> Digestable for core::marker::PhantomData<T> {
+    fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+        // Encode an empty list
+        encoder.encode_list();
     }
 }

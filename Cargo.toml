@@ -2,4 +2,6 @@
 resolver = "2"
 members = [
   "udigest",
+  "udigest-derive",
+  "examples/derivation",
 ]

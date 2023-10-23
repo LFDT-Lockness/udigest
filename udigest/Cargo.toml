@@ -8,6 +8,9 @@ edition = "2021"
 [dependencies]
 digest = { version = "0.10", default-features = false }
 
+udigest-derive = { path = "../udigest-derive", optional = true }
+
 [features]
 std = ["alloc"]
 alloc = []
+derive = ["dep:udigest-derive"]
