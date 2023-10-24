@@ -64,10 +64,6 @@
 //!
 //! [EncodeEnum] can be used to encode an enum.
 //!
-//! ### Lists
-//! Lists can be trivially encoded into bytes as long as each item in the list is encodable.
-//! [EncodeList] can be used for that.
-//!
 //! ### Primitive types
 //! Primitive values can be encoded as bytestrings as long as they can be unambiguously converted to bytes.
 //! For instance, any integer can be converted into bytes using [to_be_bytes](u32::to_be_bytes). Strings can
