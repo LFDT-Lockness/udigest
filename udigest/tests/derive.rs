@@ -7,6 +7,7 @@ pub struct DigestableExample {
     #[udigest(as_bytes)]
     pub bytes: [u8; 10],
     #[udigest(as_bytes = SomeValue::as_bytes)]
+    #[udigest(rename = "more more bytes")]
     pub more_bytes: SomeValue,
     #[udigest(skip)]
     pub ignored_field: Empty,
@@ -21,10 +22,13 @@ impl SomeValue {
 
 pub struct Empty;
 
-#[derive(udigest::Digestable)]
+use udigest as udigest2;
+#[derive(udigest2::Digestable)]
+#[udigest(root = udigest2)]
 pub enum EnumExample {
     Variant1 {
         integer: i32,
+        #[udigest(rename = 2_u32.to_be_bytes())]
         string: String,
         #[udigest(as_bytes = SomeValue::as_bytes)]
         something_else: SomeValue,

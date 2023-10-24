@@ -124,6 +124,12 @@ fn process_field(index: u32, field: &syn::Field) -> Result<Field> {
             attrs::Attr::Skip(attr) => {
                 field_attrs.skip = Some(attr);
             }
+            attrs::Attr::Rename(_) if field_attrs.rename.is_some() => {
+                return Err(Error::new(attr.kw_span(), "attribute is duplicated"))
+            }
+            attrs::Attr::Rename(attr) => {
+                field_attrs.rename = Some(attr);
+            }
             _ => return Err(Error::new(attr.kw_span(), "attribute is not allowed here")),
         }
     }
@@ -186,7 +192,7 @@ fn generate_impl_for_enum(
                     &f.attrs,
                     f.mem.span(),
                     &f.stringify_field_name(),
-                    &quote! { #binding },
+                    &binding,
                 )
             });
 
@@ -251,7 +257,7 @@ fn generate_impl_for_struct(
             &f.attrs,
             f.mem.span(),
             &f.stringify_field_name(),
-            &quote! {&self.#mem},
+            &quote_spanned! {f.mem.span() => &self.#mem},
         )
     });
 
@@ -342,11 +348,16 @@ fn encode_field(
     field_attrs: &FieldAttrs,
     field_span: proc_macro2::Span,
     field_name: &str,
-    field_ref: &proc_macro2::TokenStream,
+    field_ref: &impl quote::ToTokens,
 ) -> proc_macro2::TokenStream {
     if field_attrs.skip.is_some() {
         return quote! {};
     }
+
+    let field_name = match &field_attrs.rename {
+        None => quote! { #field_name },
+        Some(attrs::Rename { rename, value, .. }) => quote_spanned! { rename.span => #value },
+    };
 
     match &field_attrs.as_bytes {
         Some(attr) => match &attr.value {
@@ -393,6 +404,7 @@ impl ContainerAttrs {
 struct FieldAttrs {
     as_bytes: Option<attrs::AsBytes>,
     skip: Option<attrs::Skip>,
+    rename: Option<attrs::Rename>,
 }
 
 struct Field {

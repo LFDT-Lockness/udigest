@@ -180,7 +180,7 @@ pub const BIGLEN: u8 = 6;
 /// A buffer that exposes append-only access
 ///
 /// Out of box, it's implemented for any hashing algorithm that implements
-/// [`digest::Update`]
+/// [`digest::Digest`]
 pub trait Buffer {
     /// Appends `bytes` to the buffer
     ///
