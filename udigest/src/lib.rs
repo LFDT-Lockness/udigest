@@ -64,30 +64,22 @@ pub mod encoding;
 pub struct Tag<D: digest::Digest>(D);
 
 impl<D: digest::Digest> Tag<D> {
-    /// Constructs a new tag
+    /// Constructs a new tag from a bytestring
     ///
-    /// Takes domain separation `tag` as an argument. Different tags lead to different
-    /// hashes of the same value. It is recommended to define different tags per application
-    /// for better hygiene.
-    ///
-    /// If the tag is represented by a structured data, [`Unambiguous::with_structured_tag`]
+    /// If the tag is represented by a structured data, [`Tag::new_structured`]
     /// constructor can be used instead.
     pub fn new(tag: impl AsRef<[u8]>) -> Self {
         Self::new_structured(Bytes(tag))
     }
 
-    /// Constructs a new digester
-    ///
-    /// Takes domain separation `tag` as an argument. Different tags lead to different
-    /// hashes of the same value. It is recommended to define different tags per application
-    /// for better hygiene.
+    /// Constructs a new tag from a structured data
     pub fn new_structured(tag: impl Digestable) -> Self {
         Self::with_digest_and_structured_tag(D::new(), tag)
     }
 
-    /// Constructs a new digester
+    /// Constructs a new tag
     ///
-    /// Similar to [`Unambiguous::with_structured_tag`] but takes also a digest to use
+    /// Similar to [`Tag::new_structured`] but takes also a digest to use
     pub fn with_digest_and_structured_tag(mut hash: D, tag: impl Digestable) -> Self {
         let mut header = encoding::EncodeStruct::new(&mut hash).with_tag(b"udigest.header");
         header.add_field("udigest_version").encode_leaf().chain("1");
