@@ -10,7 +10,15 @@ digest = { version = "0.10", default-features = false }
 
 udigest-derive = { path = "../udigest-derive", optional = true }
 
+[dev-dependencies]
+sha2 = "0.10"
+hex = "0.4"
+
 [features]
 std = ["alloc"]
 alloc = []
 derive = ["dep:udigest-derive"]
+
+[[example]]
+name = "derivation"
+required-features = ["std", "derive"]

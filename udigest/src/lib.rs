@@ -18,13 +18,16 @@
 //!
 //! The `Digestable` trait can be implemented for the struct using a macro:
 //! ```rust
+//! use udigest::Unambiguous;
+//! use sha2::Sha256;
+//!
 //! #[derive(udigest::Digestable)]
 //! struct Person {
 //!     name: String,
 //!     job_title: String,   
 //! }
 //!
-//! let hash = udigest::Unambiguous::new("udigest.example")
+//! let hash = Unambiguous::<Sha256>::with_tag("udigest.example")
 //!     .digest(&Person {
 //!         name: "Alice".into(),
 //!         job_title: "cryptographer".into(),
@@ -49,9 +52,10 @@ pub use udigest_derive::Digestable;
 pub mod encoding;
 
 /// Unambiguously digests structured data
+#[derive(Clone)]
 pub struct Unambiguous<D: digest::Digest>(D);
 
-impl<D: digest::Digest + Clone> Unambiguous<D> {
+impl<D: digest::Digest> Unambiguous<D> {
     /// Constructs a new digester
     ///
     /// Takes domain separation `tag` as an argument. Different tags lead to different
@@ -60,7 +64,7 @@ impl<D: digest::Digest + Clone> Unambiguous<D> {
     ///
     /// If the tag is represented by a structured data, [`Unambiguous::with_structured_tag`]
     /// constructor can be used instead.
-    pub fn new(tag: impl AsRef<[u8]>) -> Self {
+    pub fn with_tag(tag: impl AsRef<[u8]>) -> Self {
         Self::with_structured_tag(Bytes(tag))
     }
 
@@ -87,25 +91,23 @@ impl<D: digest::Digest + Clone> Unambiguous<D> {
     }
 
     /// Digests a structured `value`
-    pub fn digest<T: Digestable>(&self, value: &T) -> digest::Output<D> {
-        let mut hash = self.0.clone();
-        value.unambiguously_encode(encoding::EncodeValue::new(&mut hash));
-        hash.finalize()
+    pub fn digest<T: Digestable>(mut self, value: &T) -> digest::Output<D> {
+        value.unambiguously_encode(encoding::EncodeValue::new(&mut self.0));
+        self.0.finalize()
     }
 
     /// Digests a list of structured data
     pub fn digest_iter<T: Digestable>(
-        &self,
+        mut self,
         iter: impl IntoIterator<Item = T>,
     ) -> digest::Output<D> {
-        let mut hash = self.0.clone();
-        let mut encoder = encoding::EncodeList::new(&mut hash).with_tag(b"udigest.list");
+        let mut encoder = encoding::EncodeList::new(&mut self.0).with_tag(b"udigest.list");
         for value in iter {
             let item_encoder = encoder.add_item();
             value.unambiguously_encode(item_encoder);
         }
         encoder.finish();
-        hash.finalize()
+        self.0.finalize()
     }
 }
 
@@ -122,7 +124,7 @@ impl<T: Digestable> Digestable for &T {
 
 /// Wrapper for a bytestring
 ///
-/// Wraps any bytestring than `impl AsRef<[u8]>` and provides [`Digestable`] trait implementation
+/// Wraps any bytestring that `impl AsRef<[u8]>` and provides [`Digestable`] trait implementation
 pub struct Bytes<T>(pub T);
 
 impl<T: AsRef<[u8]>> Digestable for Bytes<T> {
