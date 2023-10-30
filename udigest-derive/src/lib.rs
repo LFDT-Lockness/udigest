@@ -89,7 +89,7 @@ fn process_struct(
         .map(|(i, f)| process_field(i, f))
         .collect::<Result<Vec<_>>>()?;
 
-    generate_impl_for_struct(&container_attrs, &name, &generics, &struct_fields)
+    generate_impl_for_struct(container_attrs, name, generics, &struct_fields)
 }
 
 fn process_field(index: u32, field: &syn::Field) -> Result<Field> {

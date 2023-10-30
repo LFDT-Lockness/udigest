@@ -35,17 +35,17 @@ impl syn::parse::Parse for Attr {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let lookahead = input.lookahead1();
         if lookahead.peek(kw::root) {
-            Root::parse(&input).map(Attr::Root)
+            Root::parse(input).map(Attr::Root)
         } else if lookahead.peek(kw::tag) {
-            Tag::parse(&input).map(Attr::Tag)
+            Tag::parse(input).map(Attr::Tag)
         } else if lookahead.peek(kw::as_bytes) {
-            AsBytes::parse(&input).map(Attr::AsBytes)
+            AsBytes::parse(input).map(Attr::AsBytes)
         } else if lookahead.peek(kw::bound) {
-            Bound::parse(&input).map(Attr::Bound)
+            Bound::parse(input).map(Attr::Bound)
         } else if lookahead.peek(kw::skip) {
-            Skip::parse(&input).map(Attr::Skip)
+            Skip::parse(input).map(Attr::Skip)
         } else if lookahead.peek(kw::rename) {
-            Rename::parse(&input).map(Attr::Rename)
+            Rename::parse(input).map(Attr::Rename)
         } else {
             Err(lookahead.error())
         }
@@ -64,7 +64,7 @@ impl syn::parse::Parse for Root {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let root = input.parse::<kw::root>()?;
         let eq = input.parse::<syn::Token![=]>()?;
-        let path = RootPath::parse_separated_nonempty_with(&input, syn::Ident::parse_any)?;
+        let path = RootPath::parse_separated_nonempty_with(input, syn::Ident::parse_any)?;
 
         Ok(Self { root, eq, path })
     }
