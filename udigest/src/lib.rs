@@ -16,7 +16,7 @@
 //! * `HashMap`, `HashSet` as they can not be traversed in determenistic order
 //! * `usize`, `isize` as their byte size varies on differnet platforms
 //!
-//! The `Digestable` trait can be implemented for the struct using a macro:
+//! The `Digestable` trait can be implemented for the struct using [a macro](derive@Digestable):
 //! ```rust
 //! use udigest::{Tag, udigest};
 //! use sha2::Sha256;
@@ -41,12 +41,129 @@
 //! [here](encoding).
 
 #![no_std]
+#![forbid(missing_docs)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
 pub use encoding::Buffer;
 
+/// Derives a [`Digestable`] trait
+///
+/// Works with any struct and enum. Requires each field to be [`Digestable`] or, alternatively,
+/// it can be specified how to digest a field via attributes.
+///
+/// ### Example
+/// ```rust
+/// #[derive(udigest::Digestable)]
+/// #[udigest(tag = "udigest.example.Person.v1")]
+/// struct Person {
+///     name: String,
+///     #[udigest(rename = "job")]
+///     job_title: String,
+/// }
+/// ```
+///
+/// ### Notes
+/// * Field and variant names are mixed into the hash, so changing the field/variant
+///   name will result into a different hash even if field values are the same \
+///   Field name used in hashing can be changed using `#[udigest(rename = "...")]`
+///   attribute.
+/// * Fields are hashed exactly in the order in which they are defined, so changing
+///   the fields order will change the hashing
+/// * Hashing differnet types, generally, may result into the same hash if they have
+///   the same byte encoding. For instance:
+///   ```rust
+///   use udigest::{udigest, Tag};
+///   use sha2::Sha256;
+///   
+///   #[derive(udigest::Digestable, Debug)]
+///   struct PersonA { name: String }
+///   #[derive(udigest::Digestable, Debug)]
+///   struct PersonB { #[udigest(as_bytes)] name: Vec<u8> }
+///   
+///   let person_a = PersonA{ name: "Alice".into() };
+///   let person_b = PersonB{ name: b"Alice".to_vec() };
+///   
+///   let tag = Tag::new("udigest.example");
+///   assert_eq!(
+///       udigest::<Sha256>(tag.clone(), &person_a),
+///       udigest::<Sha256>(tag, &person_b),
+///   )
+///   ```
+///   `person_a` and `person_b` have exactly the same hash as they have the same bytes
+///   representation. For that reason, make sure that the [Tag] is unique per application.
+///   You may also specify a tag per data type using `#[udigest(tag = "...")]` attribute.
+///
+/// ### Container attributes
+/// * `#[udigest(tag = "...")]` \
+///   Specifies a domain separation tag for the container. The tag makes bytes representation of one type
+///   distinguishable from another type even if they have exactly the same fields but different tags. The
+///   tag may include a version to distinguish hashes of the same structures across different versions.
+/// * `#[udigest(bound = "...")]` \
+///   Specifies which generic bounds to use. By default, `udigest` will generate `T: Digestable` bound per
+///   each generic `T`. This behavior can be overriden via this attribute. Example:
+///   ```rust
+///   #[derive(udigest::Digestable)]
+///   #[udigest(bound = "")]
+///   struct Foo<T> {
+///       field1: String,
+///       field2: std::marker::PhantomData<T>,
+///   }
+///   ```
+/// * `#[udigest(root = ...)]` \
+///   Specifies a path to `udigest` library. Default: `udigest`.
+///   ```rust
+///   use ::udigest as udigest2;
+///   # mod udigest {}
+///   #[derive(udigest2::Digestable)]
+///   #[udigest(root = udigest2)]
+///   struct Person {
+///       name: String,
+///       job_title: String,
+///   }
+///   ```
+///
+/// ### Field attributes
+/// * `#[udigest(as_bytes)]` \
+///   Tells that the field should be treated as a bytestring. Field must implement
+///   `AsRef<[u8]>`.
+///   ```rust
+///   #[derive(udigest::Digestable)]
+///   struct Data(#[udigest(as_bytes)] Vec<u8>);
+///   ```
+/// * `#[udigest(as_bytes = ...)]` \
+///   Tells that the field should be converted to a bytestring. Uses specified function
+///   that accepts a reference of the field value, and returns `impl AsRef<[u8]>`
+///   ```rust
+///   struct Data(Vec<u8>);
+///   impl Data {
+///       fn as_bytes(&self) -> &[u8] {
+///           &self.0
+///       }
+///   }
+///   
+///   #[derive(udigest::Digestable)]
+///   struct Packet {
+///       seq: u16,
+///       #[udigest(as_bytes = Data::as_bytes)]
+///       data: Data
+///   }
+///   ```
+/// * `#[udigest(rename = "...")]` \
+///   Specifies another name to use for the field. As field name gets mixed into the hash,
+///   changing the field name will change the hash. Sometimes, it may be required to change
+///   the field name without affecting the hashing, so this attribute can be used
+///   ```rust
+///   #[derive(udigest::Digestable)]
+///   struct Person {
+///       name: String,
+///       #[udigest(rename = "job")]
+///       job_title: String,
+///   }
+///   ```
+/// * `#[udigest(skip)]` \
+///   Removes this field from hashing process
 #[cfg(feature = "derive")]
 pub use udigest_derive::Digestable;
 
@@ -127,6 +244,7 @@ pub fn udigest_iter<D: digest::Digest>(
 
 /// A value that can be unambiguously digested
 pub trait Digestable {
+    /// Unambiguously encodes the value
     fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>);
 }
 
