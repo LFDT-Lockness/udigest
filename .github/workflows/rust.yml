@@ -55,7 +55,7 @@ jobs:
       with:
         cache-on-failure: "true"
     - name: Check docs
-      run: RUSTDOCFLAGS="-D warnings" cargo doc --no-deps
+      run: RUSTDOCFLAGS="-D warnings" cargo doc --all-features --no-deps
   check-clippy:
     runs-on: ubuntu-latest
     steps:
