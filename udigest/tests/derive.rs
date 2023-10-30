@@ -22,9 +22,7 @@ impl SomeValue {
 
 pub struct Empty;
 
-use udigest as udigest2;
-#[derive(udigest2::Digestable)]
-#[udigest(root = udigest2)]
+#[derive(udigest::Digestable)]
 pub enum EnumExample {
     Variant1 {
         integer: i32,
@@ -40,4 +38,24 @@ pub enum EnumExample {
 }
 
 #[derive(udigest::Digestable)]
+#[udigest(bound = "")]
+pub struct Bounds<D>
+where
+    D: Clone,
+{
+    _ph: std::marker::PhantomData<D>,
+}
+
+#[derive(udigest::Digestable)]
 pub enum EmptyEnum {}
+
+pub mod isolated {
+    use ::udigest as udigest2;
+    mod udigest {}
+
+    #[derive(udigest2::Digestable)]
+    #[udigest(root = udigest2)]
+    pub struct Foo {
+        bar: String,
+    }
+}

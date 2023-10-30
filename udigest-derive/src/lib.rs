@@ -309,30 +309,36 @@ fn make_where_clause(
     generics: &syn::Generics,
 ) -> Result<proc_macro2::TokenStream> {
     let root_path = attrs.get_root_path();
-    match &attrs.bound {
+    let predicates = generics.where_clause.as_ref().map(|w| &w.predicates);
+
+    let generated_predicates = match &attrs.bound {
         Some(bound) => {
             let overriden_where_clause: proc_macro2::TokenStream = bound
                 .value
                 .value()
                 .parse()
                 .map_err(|err| Error::new(bound.value.span(), err))?;
-            Ok(quote_spanned! {bound.value.span() =>
-                where #overriden_where_clause
-            })
+            let predicates = syn::parse::Parser::parse2(
+                syn::punctuated::Punctuated::<syn::WherePredicate, syn::Token![,]>::parse_terminated, 
+                overriden_where_clause
+            )
+            .map_err(|err| Error::new(bound.value.span(), err))?;
+            let predicates = predicates.iter();
+            quote_spanned! {bound.value.span() =>
+                #(#predicates,)*
+            }
         }
         None => {
-            let predicates = generics.where_clause.as_ref().map(|w| &w.predicates);
-
             let generated_predicates = generics.type_params().map(|g| {
                 let ident = &g.ident;
                 quote! {#ident: #root_path::Digestable,}
             });
-
-            Ok(quote! {
-                where #(#generated_predicates)* #predicates
-            })
+            quote! { #(#generated_predicates)* }
         }
-    }
+    };
+    Ok(quote! {
+        where #generated_predicates #predicates
+    })
 }
 
 /// Generates a code that encodes a field into `encoder_var`
