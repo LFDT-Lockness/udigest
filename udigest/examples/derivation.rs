@@ -1,4 +1,5 @@
 use sha2::Sha256;
+use udigest::udigest;
 
 #[derive(udigest::Digestable)]
 #[udigest(tag = "udigest.example.Person.v1")]
@@ -14,6 +15,7 @@ fn main() {
         job_title: "cryptographer".into(),
     };
 
-    let hash = udigest::Unambiguous::<Sha256>::with_tag("udigest.example").digest(&person);
+    let tag = udigest::Tag::<Sha256>::new("udigest.example");
+    let hash = udigest(tag, &person);
     println!("{}", hex::encode(hash));
 }

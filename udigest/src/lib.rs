@@ -18,7 +18,7 @@
 //!
 //! The `Digestable` trait can be implemented for the struct using a macro:
 //! ```rust
-//! use udigest::Unambiguous;
+//! use udigest::{Tag, udigest};
 //! use sha2::Sha256;
 //!
 //! #[derive(udigest::Digestable)]
@@ -26,12 +26,13 @@
 //!     name: String,
 //!     job_title: String,   
 //! }
+//! let alice = &Person {
+//!     name: "Alice".into(),
+//!     job_title: "cryptographer".into(),
+//! };
 //!
-//! let hash = Unambiguous::<Sha256>::with_tag("udigest.example")
-//!     .digest(&Person {
-//!         name: "Alice".into(),
-//!         job_title: "cryptographer".into(),
-//!     });
+//! let tag = Tag::<Sha256>::new("udigest.example");
+//! let hash = udigest(tag, &alice);
 //! ```
 //!
 //! The crate intentionally does not try to follow any existing standards for unambiguous
@@ -51,12 +52,19 @@ pub use udigest_derive::Digestable;
 
 pub mod encoding;
 
-/// Unambiguously digests structured data
+/// Domain separation tag (DST)
+///
+/// The tag is used to distinguish different applications and provide better hygiene.
+/// Having different tags will result into different hashes even if the value being
+/// hashed is the same.
+///
+/// Tag can be constructed from a bytestring (using constructor [`new`](Self::new)),
+/// or from any structured data (using constructor [`new_structured`](Self::new_structured)).
 #[derive(Clone)]
-pub struct Unambiguous<D: digest::Digest>(D);
+pub struct Tag<D: digest::Digest>(D);
 
-impl<D: digest::Digest> Unambiguous<D> {
-    /// Constructs a new digester
+impl<D: digest::Digest> Tag<D> {
+    /// Constructs a new tag
     ///
     /// Takes domain separation `tag` as an argument. Different tags lead to different
     /// hashes of the same value. It is recommended to define different tags per application
@@ -64,8 +72,8 @@ impl<D: digest::Digest> Unambiguous<D> {
     ///
     /// If the tag is represented by a structured data, [`Unambiguous::with_structured_tag`]
     /// constructor can be used instead.
-    pub fn with_tag(tag: impl AsRef<[u8]>) -> Self {
-        Self::with_structured_tag(Bytes(tag))
+    pub fn new(tag: impl AsRef<[u8]>) -> Self {
+        Self::new_structured(Bytes(tag))
     }
 
     /// Constructs a new digester
@@ -73,7 +81,7 @@ impl<D: digest::Digest> Unambiguous<D> {
     /// Takes domain separation `tag` as an argument. Different tags lead to different
     /// hashes of the same value. It is recommended to define different tags per application
     /// for better hygiene.
-    pub fn with_structured_tag(tag: impl Digestable) -> Self {
+    pub fn new_structured(tag: impl Digestable) -> Self {
         Self::with_digest_and_structured_tag(D::new(), tag)
     }
 
@@ -91,24 +99,38 @@ impl<D: digest::Digest> Unambiguous<D> {
     }
 
     /// Digests a structured `value`
-    pub fn digest<T: Digestable>(mut self, value: &T) -> digest::Output<D> {
-        value.unambiguously_encode(encoding::EncodeValue::new(&mut self.0));
-        self.0.finalize()
+    ///
+    /// Alias to [`udigest`] in root of the crate
+    pub fn digest(self, value: impl Digestable) -> digest::Output<D> {
+        udigest(self, value)
     }
 
     /// Digests a list of structured data
-    pub fn digest_iter<T: Digestable>(
-        mut self,
-        iter: impl IntoIterator<Item = T>,
-    ) -> digest::Output<D> {
-        let mut encoder = encoding::EncodeList::new(&mut self.0).with_tag(b"udigest.list");
-        for value in iter {
-            let item_encoder = encoder.add_item();
-            value.unambiguously_encode(item_encoder);
-        }
-        encoder.finish();
-        self.0.finalize()
+    ///
+    /// Alias to [`udigest_iter`] in root of the crate
+    pub fn digest_iter(self, iter: impl IntoIterator<Item = impl Digestable>) -> digest::Output<D> {
+        udigest_iter(self, iter)
     }
+}
+
+/// Digests a structured `value`
+pub fn udigest<D: digest::Digest>(mut tag: Tag<D>, value: impl Digestable) -> digest::Output<D> {
+    value.unambiguously_encode(encoding::EncodeValue::new(&mut tag.0));
+    tag.0.finalize()
+}
+
+/// Digests a list of structured data
+pub fn udigest_iter<D: digest::Digest>(
+    mut tag: Tag<D>,
+    iter: impl IntoIterator<Item = impl Digestable>,
+) -> digest::Output<D> {
+    let mut encoder = encoding::EncodeList::new(&mut tag.0).with_tag(b"udigest.list");
+    for value in iter {
+        let item_encoder = encoder.add_item();
+        value.unambiguously_encode(item_encoder);
+    }
+    encoder.finish();
+    tag.0.finalize()
 }
 
 /// A value that can be unambiguously digested

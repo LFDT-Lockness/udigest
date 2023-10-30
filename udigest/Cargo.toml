@@ -3,6 +3,9 @@ name = "udigest"
 version = "0.1.0"
 edition = "2021"
 
+[package.metadata."docs.rs"]
+all-features = true
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -18,6 +21,10 @@ hex = "0.4"
 std = ["alloc"]
 alloc = []
 derive = ["dep:udigest-derive"]
+
+[[test]]
+name = "derive"
+required-features = ["std", "derive"]
 
 [[example]]
 name = "derivation"
