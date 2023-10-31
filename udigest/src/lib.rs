@@ -248,7 +248,7 @@ pub trait Digestable {
     fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>);
 }
 
-impl<T: Digestable> Digestable for &T {
+impl<T: Digestable + ?Sized> Digestable for &T {
     fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
         (*self).unambiguously_encode(encoder)
     }
@@ -257,9 +257,9 @@ impl<T: Digestable> Digestable for &T {
 /// Wrapper for a bytestring
 ///
 /// Wraps any bytestring that `impl AsRef<[u8]>` and provides [`Digestable`] trait implementation
-pub struct Bytes<T>(pub T);
+pub struct Bytes<T: ?Sized>(pub T);
 
-impl<T: AsRef<[u8]>> Digestable for Bytes<T> {
+impl<T: AsRef<[u8]> + ?Sized> Digestable for Bytes<T> {
     fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
         self.0.as_ref().unambiguously_encode(encoder)
     }
@@ -427,7 +427,7 @@ impl<K: Digestable, V: Digestable> Digestable for alloc::collections::BTreeMap<K
 #[cfg(feature = "alloc")]
 macro_rules! digestable_wrapper {
     ($($wrapper:ty),*) => {$(
-        impl<T: Digestable> Digestable for $wrapper {
+        impl<T: Digestable + ?Sized> Digestable for $wrapper {
             fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
                 (&**self).unambiguously_encode(encoder)
             }
