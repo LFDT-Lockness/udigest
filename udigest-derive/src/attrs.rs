@@ -7,6 +7,7 @@ pub mod kw {
     syn::custom_keyword!(bound);
     syn::custom_keyword!(skip);
     syn::custom_keyword!(rename);
+    syn::custom_keyword!(with);
 }
 
 pub enum Attr {
@@ -16,6 +17,7 @@ pub enum Attr {
     Bound(Bound),
     Skip(Skip),
     Rename(Rename),
+    With(With),
 }
 
 impl Attr {
@@ -27,6 +29,7 @@ impl Attr {
             Attr::Bound(attr) => attr.bound.span,
             Attr::Skip(attr) => attr.skip.span,
             Attr::Rename(attr) => attr.rename.span,
+            Attr::With(attr) => attr.with.span,
         }
     }
 }
@@ -46,6 +49,8 @@ impl syn::parse::Parse for Attr {
             Skip::parse(input).map(Attr::Skip)
         } else if lookahead.peek(kw::rename) {
             Rename::parse(input).map(Attr::Rename)
+        } else if lookahead.peek(kw::with) {
+            With::parse(input).map(Attr::With)
         } else {
             Err(lookahead.error())
         }
@@ -152,5 +157,20 @@ impl syn::parse::Parse for Rename {
         let value = input.parse()?;
 
         Ok(Self { rename, eq, value })
+    }
+}
+
+pub struct With {
+    pub with: kw::with,
+    pub eq: syn::Token![=],
+    pub value: syn::Expr,
+}
+
+impl syn::parse::Parse for With {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let with = input.parse()?;
+        let eq = input.parse()?;
+        let value = input.parse()?;
+        Ok(Self { with, eq, value })
     }
 }

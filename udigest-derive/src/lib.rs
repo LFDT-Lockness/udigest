@@ -112,11 +112,23 @@ fn process_field(index: u32, field: &syn::Field) -> Result<Field> {
             continue;
         };
         match attr {
+            attrs::Attr::AsBytes(_) if field_attrs.with.is_some() => {
+                return Err(Error::new(attr.kw_span(), "attributes `with` and `as_bytes` cannot be used together"));
+            }
+            attrs::Attr::With(_) if field_attrs.as_bytes.is_some() => {
+                return Err(Error::new(attr.kw_span(), "attributes `with` and `as_bytes` cannot be used together"));
+            }
             attrs::Attr::AsBytes(_) if field_attrs.as_bytes.is_some() => {
                 return Err(Error::new(attr.kw_span(), "attribute is duplicated"))
             }
             attrs::Attr::AsBytes(attr) => {
                 field_attrs.as_bytes = Some(attr);
+            }
+            attrs::Attr::With(_) if field_attrs.with.is_some() => {
+                return Err(Error::new(attr.kw_span(), "attribute is duplicated"))
+            }
+            attrs::Attr::With(attr) => {
+                field_attrs.with = Some(attr);
             }
             attrs::Attr::Skip(_) if field_attrs.skip.is_some() => {
                 return Err(Error::new(attr.kw_span(), "attribute is duplicated"));
@@ -366,8 +378,11 @@ fn encode_field(
         Some(attrs::Rename { rename, value, .. }) => quote_spanned! { rename.span => #value },
     };
 
-    match &field_attrs.as_bytes {
-        Some(attr) => match &attr.value {
+    match (&field_attrs.as_bytes, &field_attrs.with) {
+        (Some(_), Some(_)) => {
+            unreachable!("it should have been validated that `with` and `as_bytes` are not used in the same time")
+        }
+        (Some(attr), None) => match &attr.value {
             Some(func) => quote_spanned! {field_span => {
                 let field_encoder = #encoder_var.add_field(#field_name);
                 let field_bytes = #func(#field_ref);
@@ -380,7 +395,11 @@ fn encode_field(
                 field_encoder.encode_leaf().chain(field_bytes);
             }),
         },
-        None => quote_spanned! {field_span => {
+        (None, Some(attrs::With { value: func, .. })) => quote_spanned! {field_span => {
+            let field_encoder = #encoder_var.add_field(#field_name);
+            #func(#field_ref, field_encoder);
+        }},
+        (None, None) => quote_spanned! {field_span => {
             let field_encoder = #encoder_var.add_field(#field_name);
             #root_path::Digestable::unambiguously_encode(#field_ref, field_encoder);
         }},
@@ -412,6 +431,7 @@ struct FieldAttrs {
     as_bytes: Option<attrs::AsBytes>,
     skip: Option<attrs::Skip>,
     rename: Option<attrs::Rename>,
+    with: Option<attrs::With>,
 }
 
 struct Field {

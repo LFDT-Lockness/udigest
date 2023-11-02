@@ -72,3 +72,23 @@ pub enum EnumWithTag {
     Variant1(String),
     Variant2 { int: u32 },
 }
+
+#[derive(udigest::Digestable)]
+pub struct StructAttrWith {
+    #[udigest(with = encoding::encode_bar)]
+    foo: Bar,
+}
+
+pub struct Bar;
+
+mod encoding {
+    pub fn encode_bar<B: udigest::Buffer>(
+        _bar: &super::Bar,
+        encoder: udigest::encoding::EncodeValue<B>,
+    ) {
+        let mut list = encoder.encode_list();
+        list.add_leaf().chain("foo");
+        list.add_leaf().chain("bar");
+        list.finish()
+    }
+}
