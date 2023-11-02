@@ -151,15 +151,16 @@ fn generate_impl_for_enum(
 
     let where_clause = make_where_clause(attrs, enum_generics)?;
 
+    let encoder_var = syn::Ident::new("encoder", proc_macro2::Span::call_site());
+
     let specify_tag = attrs.tag.as_ref().map(|attrs::Tag { value, .. }| {
         quote_spanned! {value.span() =>
             let tag = #value;
             let tag = AsRef::<[u8]>::as_ref(&tag);
-            encoder.set_tag(tag);
+            #encoder_var.set_tag(tag);
         }
     });
 
-    let encoder_var = syn::Ident::new("encoder", proc_macro2::Span::call_site());
     let match_expr = if !enum_variants.is_empty() {
         let match_branches = enum_variants.iter().map(|v| {
             let variant_name = &v.name;
@@ -200,7 +201,6 @@ fn generate_impl_for_enum(
             quote_spanned! {variant_name.span() =>
                 #enum_name::#variant_name #pattern => {
                     let mut #encoder_var = #encoder_var.with_variant(#variant_name_str);
-                    #specify_tag
                     #(#encode_fields)*
                 }
             }
@@ -222,7 +222,8 @@ fn generate_impl_for_enum(
             where
                 B: #root_path::Buffer
             {
-                let #encoder_var = encoder.encode_enum();
+                let mut #encoder_var = encoder.encode_enum();
+                #specify_tag
                 #match_expr
             }
         }

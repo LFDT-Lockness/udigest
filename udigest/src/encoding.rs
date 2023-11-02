@@ -240,12 +240,13 @@ impl<'b, B: Buffer> EncodeValue<'b, B> {
 #[must_use = "encoder must be used to encode a value"]
 pub struct EncodeEnum<'b, B: Buffer> {
     buffer: &'b mut B,
+    tag: Option<&'b [u8]>,
 }
 
 impl<'b, B: Buffer> EncodeEnum<'b, B> {
     /// Constructs an encoder
     pub fn new(buffer: &'b mut B) -> Self {
-        Self { buffer }
+        Self { buffer, tag: None }
     }
 
     /// Encodes a variant name
@@ -254,7 +255,25 @@ impl<'b, B: Buffer> EncodeEnum<'b, B> {
     pub fn with_variant(self, variant_name: impl AsRef<[u8]>) -> EncodeStruct<'b, B> {
         let mut s = EncodeStruct::new(self.buffer);
         s.add_field("variant").encode_leaf().chain(variant_name);
+        if let Some(tag) = self.tag {
+            s.set_tag(tag)
+        }
         s
+    }
+
+    /// Specifies a domain separation tag
+    ///
+    /// Tag will be unambiguously encoded
+    pub fn set_tag(&mut self, tag: &'b [u8]) {
+        self.tag = Some(tag);
+    }
+
+    /// Specifies a domain separation tag
+    ///
+    /// Tag will be unambiguously encoded
+    pub fn with_tag(mut self, tag: &'b [u8]) -> Self {
+        self.set_tag(tag);
+        self
     }
 }
 

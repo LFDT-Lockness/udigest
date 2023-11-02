@@ -59,3 +59,10 @@ pub mod isolated {
         bar: String,
     }
 }
+
+#[derive(udigest::Digestable)]
+#[udigest(tag = "udigest.example.v1")]
+pub enum EnumWithTag {
+    Variant1(String),
+    Variant2 { int: u32 },
+}
