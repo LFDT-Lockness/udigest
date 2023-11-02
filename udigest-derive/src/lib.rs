@@ -371,7 +371,7 @@ fn encode_field(
             Some(func) => quote_spanned! {field_span => {
                 let field_encoder = #encoder_var.add_field(#field_name);
                 let field_bytes = #func(#field_ref);
-                let field_bytes = AsRef::<[u8]>::as_ref(field_bytes);
+                let field_bytes = AsRef::<[u8]>::as_ref(&field_bytes);
                 field_encoder.encode_leaf().chain(field_bytes);
             }},
             None => quote_spanned!(field_span => {

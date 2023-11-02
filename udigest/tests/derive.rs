@@ -9,6 +9,8 @@ pub struct DigestableExample {
     #[udigest(as_bytes = SomeValue::as_bytes)]
     #[udigest(rename = "more more bytes")]
     pub more_bytes: SomeValue,
+    #[udigest(as_bytes = SomeValue::to_vec)]
+    pub bytes_as_vec: SomeValue,
     #[udigest(skip)]
     pub ignored_field: Empty,
 }
@@ -17,6 +19,10 @@ pub struct SomeValue(Vec<u8>);
 impl SomeValue {
     pub fn as_bytes(&self) -> &[u8] {
         &self.0
+    }
+
+    pub fn to_vec(&self) -> Vec<u8> {
+        self.0.clone()
     }
 }
 
