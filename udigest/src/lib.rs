@@ -150,6 +150,32 @@ pub use encoding::Buffer;
 ///       data: Data
 ///   }
 ///   ```
+/// * `#[udigest(with = ...)]` \
+///   Can be used to override the field encoding. Accepts as input a function with a signature:
+///   ```rust,no_run
+///   # type T = String;
+///   fn encoder<B>(value: &T, encoder: udigest::encoding::EncodeValue<B>)
+///   where
+///       B: udigest::Buffer
+///   # {}
+///   ```
+///   Example:
+///   ```rust
+///   #[derive(udigest::Digestable)]
+///   pub struct User {
+///       name: String,
+///       // `Instant` encoding is not provided by `udigest` crate, but it
+///       // can be manually provided
+///       #[udigest(with = encode_instant)]
+///       created_at: std::time::Instant,
+///   }
+///   fn encode_instant<B: udigest::Buffer>(
+///       instant: &std::time::Instant,
+///       encoder: udigest::encoding::EncodeValue<B>
+///   ) {
+///       todo!()
+///   }
+///   ```
 /// * `#[udigest(rename = "...")]` \
 ///   Specifies another name to use for the field. As field name gets mixed into the hash,
 ///   changing the field name will change the hash. Sometimes, it may be required to change
