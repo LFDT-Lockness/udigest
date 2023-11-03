@@ -113,10 +113,16 @@ fn process_field(index: u32, field: &syn::Field) -> Result<Field> {
         };
         match attr {
             attrs::Attr::AsBytes(_) if field_attrs.with.is_some() => {
-                return Err(Error::new(attr.kw_span(), "attributes `with` and `as_bytes` cannot be used together"));
+                return Err(Error::new(
+                    attr.kw_span(),
+                    "attributes `with` and `as_bytes` cannot be used together",
+                ));
             }
             attrs::Attr::With(_) if field_attrs.as_bytes.is_some() => {
-                return Err(Error::new(attr.kw_span(), "attributes `with` and `as_bytes` cannot be used together"));
+                return Err(Error::new(
+                    attr.kw_span(),
+                    "attributes `with` and `as_bytes` cannot be used together",
+                ));
             }
             attrs::Attr::AsBytes(_) if field_attrs.as_bytes.is_some() => {
                 return Err(Error::new(attr.kw_span(), "attribute is duplicated"))
@@ -332,7 +338,7 @@ fn make_where_clause(
                 .parse()
                 .map_err(|err| Error::new(bound.value.span(), err))?;
             let predicates = syn::parse::Parser::parse2(
-                syn::punctuated::Punctuated::<syn::WherePredicate, syn::Token![,]>::parse_terminated, 
+                syn::punctuated::Punctuated::<syn::WherePredicate, syn::Token![,]>::parse_terminated,
                 overriden_where_clause
             )
             .map_err(|err| Error::new(bound.value.span(), err))?;
