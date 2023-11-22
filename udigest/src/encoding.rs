@@ -218,6 +218,13 @@ impl<'b, B: Buffer> EncodeValue<'b, B> {
         EncodeLeaf::new(self.buffer)
     }
 
+    /// Encodes a leaf value
+    ///
+    /// Alias to `.encode_leaf().chain(value)`
+    pub fn encode_leaf_value(self, value: impl AsRef<[u8]>) {
+        self.encode_leaf().chain(value);
+    }
+
     /// Encodes a struct
     ///
     /// Struct is represented as a list: `[field_name1, field_value1, ...]`
