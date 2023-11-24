@@ -1,4 +1,4 @@
-//! Unambiguously digest structured data
+//! # Unambiguously digest structured data
 //!
 //! `udigest` provides utilities for unambiguous hashing the structured data. Structured
 //! data can be anything that implements [`Digestable`] trait:
@@ -37,8 +37,13 @@
 //!
 //! The crate intentionally does not try to follow any existing standards for unambiguous
 //! encoding. The format for encoding was desingned specifically for `udigest` to provide
-//! a better usage experience in Rust. The details of encoding format can be found
-//! [here](encoding).
+//! a better usage experience in Rust. The details of encoding format can be found in
+//! [`encoding` module](encoding).
+//!
+//! ## Features
+//! * `std` implements `Digestable` trait for types in standard library
+//! * `alloc` implements `Digestable` trait for type in `alloc` crate
+//! * `derive` enables `Digestable` proc macro
 
 #![no_std]
 #![forbid(missing_docs)]
