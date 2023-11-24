@@ -1,3 +1,7 @@
+![License](https://img.shields.io/crates/l/udigest.svg)
+[![Docs](https://docs.rs/udigest/badge.svg)](https://docs.rs/udigest)
+[![Crates io](https://img.shields.io/crates/v/udigest.svg)](https://crates.io/crates/udigest)
+
 ## Unambiguously digest structured data
 
 `udigest` provides utilities for unambiguous hashing the structured data. Structured
