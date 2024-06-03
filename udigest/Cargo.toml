@@ -38,8 +38,12 @@ digest = ["dep:digest"]
 
 [[test]]
 name = "derive"
-required-features = ["std", "derive"]
+required-features = ["std", "derive", "digest"]
 
 [[example]]
 name = "derivation"
-required-features = ["std", "derive"]
+required-features = ["std", "derive", "digest"]
+
+[[test]]
+name = "deterministic_hash"
+required-features = ["derive", "digest"]
