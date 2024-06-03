@@ -99,8 +99,8 @@ pub use encoding::Buffer;
 ///   )
 ///   ```
 ///   `person_a` and `person_b` have exactly the same hash as they have the same bytes
-///   representation. For that reason, make sure that the [Tag] is unique per application.
-///   You may also specify a tag per data type using `#[udigest(tag = "...")]` attribute.
+///   representation. If you need to distinguish them, you can specify a domain-separation
+///   tag using `#[udigest(tag = "...")]` attribute.
 ///
 /// ### Container attributes
 /// * `#[udigest(tag = "...")]` \
