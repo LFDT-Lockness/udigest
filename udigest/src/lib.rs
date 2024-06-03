@@ -44,6 +44,7 @@
 //! * `digest` enables support of hash functions that implement [`digest`] traits \
 //!    If feature is not enabled, the crate is still usable via [`Digestable`] trait that
 //!    generically implements unambiguous encoding
+//! * `inline-struct` is required to use [`inline_struct!`] macro
 //! * `std` implements `Digestable` trait for types in standard library
 //! * `alloc` implements `Digestable` trait for type in `alloc` crate
 //! * `derive` enables `Digestable` proc macro
