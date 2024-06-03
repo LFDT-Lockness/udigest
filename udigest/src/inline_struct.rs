@@ -40,6 +40,7 @@ impl InlineStruct<'static> {
     /// Creates inline struct with no fields
     ///
     /// Normally, you don't need to use it directly. Use [`inline_struct!`] macro instead.
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self {
             fields_list: Nil,
