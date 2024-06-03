@@ -3,7 +3,7 @@
 //! The core of the crate is functionality to unambiguously encode any structured data
 //! into bytes. It's then used to digest any data into a hash. Note that this module
 //! provides low-level implementation details which you normally don't need to know
-//! unless you manually implemenet [Digestable](crate::Digestable) trait.
+//! unless you manually implement [Digestable](crate::Digestable) trait.
 //!
 //! Any structured `value` is encoded either as a bytestring or as a list (each element
 //! within the list is either a bytestring or a list). The simplified grammar can be seen as
@@ -18,7 +18,7 @@
 //! Encoding goal is to distinguish `["12", "3"]` from `["1", "23"]`, `["1", [], "2"]`
 //! from `["1", "2"]` and so on. Now, we only need to map any structured data onto
 //! that grammar to have an unambiguous encoding. Below, we will show how Rust structures
-//! can be mapped onto the lists, and then we descrive how exactly encoding works.
+//! can be mapped onto the lists, and then we describe how exactly encoding works.
 //!
 //! # Mapping Rust types onto lists
 //!
@@ -188,9 +188,25 @@ pub trait Buffer {
     fn write(&mut self, bytes: &[u8]);
 }
 
-impl<D: digest::Digest> Buffer for D {
+/// Wraps [`digest::Digest`] and implements [`Buffer`]
+#[cfg(feature = "digest")]
+pub struct BufferDigest<D: digest::Digest>(pub D);
+
+#[cfg(feature = "digest")]
+impl<D: digest::Digest> Buffer for BufferDigest<D> {
     fn write(&mut self, bytes: &[u8]) {
-        self.update(bytes)
+        self.0.update(bytes)
+    }
+}
+
+/// Wraps [`digest::Update`] and implements [`Buffer`]
+#[cfg(feature = "digest")]
+pub struct BufferUpdate<D: digest::Update>(pub D);
+
+#[cfg(feature = "digest")]
+impl<D: digest::Update> Buffer for BufferUpdate<D> {
+    fn write(&mut self, bytes: &[u8]) {
+        self.0.update(bytes)
     }
 }
 
@@ -312,15 +328,15 @@ impl<'b, B: Buffer> EncodeStruct<'b, B> {
         self
     }
 
-    /// Adds a fiels to the structure
+    /// Adds a fields to the structure
     ///
-    /// Returns an encoder that shall be used to encode the fiels value
+    /// Returns an encoder that shall be used to encode the fields value
     pub fn add_field(&mut self, field_name: impl AsRef<[u8]>) -> EncodeValue<B> {
         self.list.add_leaf().chain(field_name);
         self.list.add_item()
     }
 
-    /// Finilizes the encoding, puts the necessary metadata to the buffer
+    /// Finalizes the encoding, puts the necessary metadata to the buffer
     ///
     /// It's an alias to dropping the encoder
     pub fn finish(self) {}
@@ -377,7 +393,7 @@ impl<'b, B: Buffer> EncodeLeaf<'b, B> {
             .expect("leaf length overflows `usize`")
     }
 
-    /// Finilizes the encoding, puts the necessary metadata to the buffer
+    /// Finalizes the encoding, puts the necessary metadata to the buffer
     ///
     /// It's an alias to dropping the encoder
     pub fn finish(self) {}
@@ -452,7 +468,7 @@ impl<'b, B: Buffer> EncodeList<'b, B> {
         self.add_item().encode_list()
     }
 
-    /// Finilizes the encoding, puts the necessary metadata to the buffer
+    /// Finalizes the encoding, puts the necessary metadata to the buffer
     ///
     /// It's an alias to dropping the encoder
     pub fn finish(self) {}
@@ -475,7 +491,7 @@ impl<'b, B: Buffer> Drop for EncodeList<'b, B> {
 
 /// Encodes length of list or leaf
 ///
-/// Altough we expose how the length is encoded, normally you should use [EncodeList]
+/// Although we expose how the length is encoded, normally you should use [EncodeList]
 /// and [EncodeLeaf] which use this function internally
 pub fn encode_len(buffer: &mut impl Buffer, len: usize) {
     match u32::try_from(len) {

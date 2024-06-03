@@ -17,34 +17,33 @@ data can be anything that implements `Digestable` trait:
 
 The trait is intentionally not implemented for certain types:
 
-* `HashMap`, `HashSet` as they can not be traversed in determenistic order
-* `usize`, `isize` as their byte size varies on differnet platforms
+* `HashMap`, `HashSet` as they can not be traversed in deterministic order
+* `usize`, `isize` as their byte size varies on different platforms
 
 The `Digestable` trait can be implemented for the struct using a macro:
 ```rust
-use udigest::{Tag, udigest};
-use sha2::Sha256;
-
 #[derive(udigest::Digestable)]
 struct Person {
     name: String,
     job_title: String,
 }
-let alice = &Person {
+let alice = Person {
     name: "Alice".into(),
     job_title: "cryptographer".into(),
 };
 
-let tag = Tag::<Sha256>::new("udigest.example");
-let hash = udigest(tag, &alice);
+let hash = udigest::hash::<sha2::Sha256, _>(&alice);
 ```
 
 The crate intentionally does not try to follow any existing standards for unambiguous
-encoding. The format for encoding was desingned specifically for `udigest` to provide
+encoding. The format for encoding was designed specifically for `udigest` to provide
 a better usage experience in Rust. The details of encoding format can be found in
 `encoding` module.
 
 ### Features
+* `digest` enables support of hash functions that implement `digest` traits \
+   If feature is not enabled, the crate is still usable via `Digestable` trait that
+   generically implements unambiguous encoding
 * `std` implements `Digestable` trait for types in standard library
 * `alloc` implements `Digestable` trait for type in `alloc` crate
 * `derive` enables `Digestable` proc macro

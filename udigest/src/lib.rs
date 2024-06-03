@@ -17,40 +17,42 @@
 //!
 //! The trait is intentionally not implemented for certain types:
 //!
-//! * `HashMap`, `HashSet` as they can not be traversed in determenistic order
-//! * `usize`, `isize` as their byte size varies on differnet platforms
+//! * `HashMap`, `HashSet` as they can not be traversed in deterministic order
+//! * `usize`, `isize` as their byte size varies on different platforms
 //!
 //! The `Digestable` trait can be implemented for the struct using [a macro](derive@Digestable):
 //! ```rust
-//! use udigest::{Tag, udigest};
-//! use sha2::Sha256;
-//!
 //! #[derive(udigest::Digestable)]
 //! struct Person {
 //!     name: String,
 //!     job_title: String,   
 //! }
-//! let alice = &Person {
+//! let alice = Person {
 //!     name: "Alice".into(),
 //!     job_title: "cryptographer".into(),
 //! };
 //!
-//! let tag = Tag::<Sha256>::new("udigest.example");
-//! let hash = udigest(tag, &alice);
+//! let hash = udigest::hash::<sha2::Sha256, _>(&alice);
 //! ```
 //!
 //! The crate intentionally does not try to follow any existing standards for unambiguous
-//! encoding. The format for encoding was desingned specifically for `udigest` to provide
+//! encoding. The format for encoding was designed specifically for `udigest` to provide
 //! a better usage experience in Rust. The details of encoding format can be found in
 //! [`encoding` module](encoding).
 //!
 //! ## Features
+//! * `digest` enables support of hash functions that implement [`digest`] traits \
+//!    If feature is not enabled, the crate is still usable via [`Digestable`] trait that
+//!    generically implements unambiguous encoding
 //! * `std` implements `Digestable` trait for types in standard library
 //! * `alloc` implements `Digestable` trait for type in `alloc` crate
 //! * `derive` enables `Digestable` proc macro
 
 #![no_std]
 #![forbid(missing_docs)]
+#![cfg_attr(not(test), forbid(unused_crate_dependencies))]
+#![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -80,12 +82,9 @@ pub use encoding::Buffer;
 ///   attribute.
 /// * Fields are hashed exactly in the order in which they are defined, so changing
 ///   the fields order will change the hashing
-/// * Hashing differnet types, generally, may result into the same hash if they have
+/// * Hashing different types, generally, may result into the same hash if they have
 ///   the same byte encoding. For instance:
 ///   ```rust
-///   use udigest::{udigest, Tag};
-///   use sha2::Sha256;
-///   
 ///   #[derive(udigest::Digestable, Debug)]
 ///   struct PersonA { name: String }
 ///   #[derive(udigest::Digestable, Debug)]
@@ -94,10 +93,9 @@ pub use encoding::Buffer;
 ///   let person_a = PersonA{ name: "Alice".into() };
 ///   let person_b = PersonB{ name: b"Alice".to_vec() };
 ///   
-///   let tag = Tag::new("udigest.example");
 ///   assert_eq!(
-///       udigest::<Sha256>(tag.clone(), &person_a),
-///       udigest::<Sha256>(tag, &person_b),
+///       udigest::hash::<sha2::Sha256, _>(&person_a),
+///       udigest::hash::<sha2::Sha256, _>(&person_b),
 ///   )
 ///   ```
 ///   `person_a` and `person_b` have exactly the same hash as they have the same bytes
@@ -111,7 +109,7 @@ pub use encoding::Buffer;
 ///   tag may include a version to distinguish hashes of the same structures across different versions.
 /// * `#[udigest(bound = "...")]` \
 ///   Specifies which generic bounds to use. By default, `udigest` will generate `T: Digestable` bound per
-///   each generic `T`. This behavior can be overriden via this attribute. Example:
+///   each generic `T`. This behavior can be overridden via this attribute. Example:
 ///   ```rust
 ///   #[derive(udigest::Digestable)]
 ///   #[udigest(bound = "")]
@@ -204,77 +202,90 @@ pub use udigest_derive::Digestable;
 
 pub mod encoding;
 
-/// Domain separation tag (DST)
-///
-/// The tag is used to distinguish different applications and provide better hygiene.
-/// Having different tags will result into different hashes even if the value being
-/// hashed is the same.
-///
-/// Tag can be constructed from a bytestring (using constructor [`new`](Self::new)),
-/// or from any structured data (using constructor [`new_structured`](Self::new_structured)).
-#[derive(Clone)]
-pub struct Tag<D: digest::Digest>(D);
-
-impl<D: digest::Digest> Tag<D> {
-    /// Constructs a new tag from a bytestring
-    ///
-    /// If the tag is represented by a structured data, [`Tag::new_structured`]
-    /// constructor can be used instead.
-    pub fn new(tag: impl AsRef<[u8]>) -> Self {
-        Self::new_structured(Bytes(tag))
-    }
-
-    /// Constructs a new tag from a structured data
-    pub fn new_structured(tag: impl Digestable) -> Self {
-        Self::with_digest_and_structured_tag(D::new(), tag)
-    }
-
-    /// Constructs a new tag
-    ///
-    /// Similar to [`Tag::new_structured`] but takes also a digest to use
-    pub fn with_digest_and_structured_tag(mut hash: D, tag: impl Digestable) -> Self {
-        let mut header = encoding::EncodeStruct::new(&mut hash).with_tag(b"udigest.header");
-        header.add_field("udigest_version").encode_leaf().chain("1");
-        let tag_encoder = header.add_field("tag");
-        tag.unambiguously_encode(tag_encoder);
-        header.finish();
-
-        Self(hash)
-    }
-
-    /// Digests a structured `value`
-    ///
-    /// Alias to [`udigest`] in root of the crate
-    pub fn digest(self, value: impl Digestable) -> digest::Output<D> {
-        udigest(self, value)
-    }
-
-    /// Digests a list of structured data
-    ///
-    /// Alias to [`udigest_iter`] in root of the crate
-    pub fn digest_iter(self, iter: impl IntoIterator<Item = impl Digestable>) -> digest::Output<D> {
-        udigest_iter(self, iter)
-    }
+/// Digests a structured `value` using fixed-output hash function (like sha2-256)
+#[cfg(feature = "digest")]
+pub fn hash<D: digest::Digest, T: Digestable>(value: &T) -> digest::Output<D> {
+    let mut hash = encoding::BufferDigest(D::new());
+    value.unambiguously_encode(encoding::EncodeValue::new(&mut hash));
+    hash.0.finalize()
 }
 
-/// Digests a structured `value`
-pub fn udigest<D: digest::Digest>(mut tag: Tag<D>, value: impl Digestable) -> digest::Output<D> {
-    value.unambiguously_encode(encoding::EncodeValue::new(&mut tag.0));
-    tag.0.finalize()
-}
-
-/// Digests a list of structured data
-pub fn udigest_iter<D: digest::Digest>(
-    mut tag: Tag<D>,
+/// Digests a list of structured data using fixed-output hash function (like sha2-256)
+#[cfg(feature = "digest")]
+pub fn hash_iter<D: digest::Digest>(
     iter: impl IntoIterator<Item = impl Digestable>,
 ) -> digest::Output<D> {
-    let mut encoder = encoding::EncodeList::new(&mut tag.0).with_tag(b"udigest.list");
+    let mut hash = encoding::BufferDigest(D::new());
+    let mut encoder = encoding::EncodeList::new(&mut hash).with_tag(b"udigest.list");
     for value in iter {
         let item_encoder = encoder.add_item();
         value.unambiguously_encode(item_encoder);
     }
     encoder.finish();
-    tag.0.finalize()
+    hash.0.finalize()
+}
+
+/// Digests a structured `value` using extendable-output hash function (like shake-256)
+#[cfg(feature = "digest")]
+pub fn hash_xof<D, T>(value: &T) -> D::Reader
+where
+    T: Digestable,
+    D: Default + digest::Update + digest::ExtendableOutput,
+{
+    let mut hash = encoding::BufferUpdate(D::default());
+    value.unambiguously_encode(encoding::EncodeValue::new(&mut hash));
+    hash.0.finalize_xof()
+}
+
+/// Digests a list of structured data using extendable-output hash function (like shake-256)
+#[cfg(feature = "digest")]
+pub fn hash_xof_iter<D>(iter: impl IntoIterator<Item = impl Digestable>) -> D::Reader
+where
+    D: Default + digest::Update + digest::ExtendableOutput,
+{
+    let mut hash = encoding::BufferUpdate(D::default());
+    let mut encoder = encoding::EncodeList::new(&mut hash).with_tag(b"udigest.list");
+    for value in iter {
+        let item_encoder = encoder.add_item();
+        value.unambiguously_encode(item_encoder);
+    }
+    encoder.finish();
+    hash.0.finalize_xof()
+}
+
+/// Digests a structured `value` using variable-output hash function (like blake2b)
+#[cfg(feature = "digest")]
+pub fn hash_vof<D, T>(value: &T, out: &mut [u8]) -> Result<(), digest::InvalidOutputSize>
+where
+    T: Digestable,
+    D: digest::VariableOutput + digest::Update,
+{
+    let mut hash = encoding::BufferUpdate(D::new(out.len())?);
+    value.unambiguously_encode(encoding::EncodeValue::new(&mut hash));
+    hash.0
+        .finalize_variable(out)
+        .map_err(|_| digest::InvalidOutputSize)
+}
+
+/// Digests a list of structured data using variable-output hash function (like blake2b)
+#[cfg(feature = "digest")]
+pub fn hash_vof_iter<D>(
+    iter: impl IntoIterator<Item = impl Digestable>,
+    out: &mut [u8],
+) -> Result<(), digest::InvalidOutputSize>
+where
+    D: digest::VariableOutput + digest::Update,
+{
+    let mut hash = encoding::BufferUpdate(D::new(out.len())?);
+    let mut encoder = encoding::EncodeList::new(&mut hash).with_tag(b"udigest.list");
+    for value in iter {
+        let item_encoder = encoder.add_item();
+        value.unambiguously_encode(item_encoder);
+    }
+    encoder.finish();
+    hash.0
+        .finalize_variable(out)
+        .map_err(|_| digest::InvalidOutputSize)
 }
 
 /// A value that can be unambiguously digested

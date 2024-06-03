@@ -38,9 +38,9 @@ pub enum EnumExample {
         something_else: SomeValue,
     },
     Variant2(String, #[udigest(as_bytes)] Vec<u8>, #[udigest(skip)] Empty),
-    Vartiant3 {},
+    Variant3 {},
     Variant4(),
-    Vartiant5,
+    Variant5,
 }
 
 #[derive(udigest::Digestable)]
