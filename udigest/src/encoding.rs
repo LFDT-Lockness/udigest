@@ -215,23 +215,27 @@ impl<D: digest::Update> Buffer for BufferUpdate<D> {
 /// Can be used to encode (only) a single value. Value can be a leaf (bytestring) or a list of values.
 #[must_use = "encoder must be used to encode a value"]
 pub struct EncodeValue<'b, B: Buffer> {
-    buffer: &'b mut B,
+    buffer: Option<&'b mut B>,
 }
 
 impl<'b, B: Buffer> EncodeValue<'b, B> {
     /// Constructs an encoder
     pub fn new(buffer: &'b mut B) -> Self {
-        Self { buffer }
+        Self {
+            buffer: Some(buffer),
+        }
     }
 
     /// Encodes a list
-    pub fn encode_list(self) -> EncodeList<'b, B> {
-        EncodeList::new(self.buffer)
+    pub fn encode_list(mut self) -> EncodeList<'b, B> {
+        #[allow(clippy::expect_used)]
+        EncodeList::new(self.buffer.take().expect("buffer must be available"))
     }
 
     /// Encodes a leaf (bytestring)
-    pub fn encode_leaf(self) -> EncodeLeaf<'b, B> {
-        EncodeLeaf::new(self.buffer)
+    pub fn encode_leaf(mut self) -> EncodeLeaf<'b, B> {
+        #[allow(clippy::expect_used)]
+        EncodeLeaf::new(self.buffer.take().expect("buffer must be available"))
     }
 
     /// Encodes a leaf value
@@ -244,15 +248,26 @@ impl<'b, B: Buffer> EncodeValue<'b, B> {
     /// Encodes a struct
     ///
     /// Struct is represented as a list: `[field_name1, field_value1, ...]`
-    pub fn encode_struct(self) -> EncodeStruct<'b, B> {
-        EncodeStruct::new(self.buffer)
+    pub fn encode_struct(mut self) -> EncodeStruct<'b, B> {
+        #[allow(clippy::expect_used)]
+        EncodeStruct::new(self.buffer.take().expect("buffer must be available"))
     }
 
     /// Encodes an enum
     ///
     /// Enum is represented as a list: `["variant", variant_name, field_name1, field_value1, ...]`
-    pub fn encode_enum(self) -> EncodeEnum<'b, B> {
-        EncodeEnum::new(self.buffer)
+    pub fn encode_enum(mut self) -> EncodeEnum<'b, B> {
+        #[allow(clippy::expect_used)]
+        EncodeEnum::new(self.buffer.take().expect("buffer must be available"))
+    }
+}
+
+impl<'b, B: Buffer> Drop for EncodeValue<'b, B> {
+    fn drop(&mut self) {
+        if let Some(buffer) = &mut self.buffer {
+            // buffer is not consumed -- we write an empty leaf
+            EncodeLeaf::new(*buffer).finish()
+        }
     }
 }
 
