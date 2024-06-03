@@ -201,6 +201,8 @@ pub use encoding::Buffer;
 pub use udigest_derive::Digestable;
 
 pub mod encoding;
+#[cfg(feature = "inline-struct")]
+pub mod inline_struct;
 
 /// Digests a structured `value` using fixed-output hash function (like sha2-256)
 #[cfg(feature = "digest")]
@@ -322,6 +324,12 @@ macro_rules! digestable_integers {
 }
 
 digestable_integers!(i8, u8, i16, u16, i32, u32, i64, u64, i128, u128);
+
+impl Digestable for bool {
+    fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+        u8::from(*self).unambiguously_encode(encoder)
+    }
+}
 
 impl Digestable for char {
     fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {

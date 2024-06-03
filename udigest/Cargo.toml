@@ -28,22 +28,27 @@ sha3 = "0.10"
 blake2 = "0.10"
 
 [features]
-default = ["digest", "std"]
+default = ["digest", "std", "inline-struct"]
 
 std = ["alloc"]
 alloc = []
 derive = ["dep:udigest-derive"]
 
 digest = ["dep:digest"]
+inline-struct = []
 
 [[test]]
 name = "derive"
 required-features = ["std", "derive", "digest"]
 
-[[example]]
-name = "derivation"
-required-features = ["std", "derive", "digest"]
-
 [[test]]
 name = "deterministic_hash"
 required-features = ["derive", "digest"]
+
+[[test]]
+name = "inline_struct"
+required-features = ["derive", "inline-struct"]
+
+[[example]]
+name = "derivation"
+required-features = ["std", "derive", "digest"]
