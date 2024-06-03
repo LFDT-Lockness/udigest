@@ -4,6 +4,8 @@
 * Add support of all hash functions compatible with `digest` crate:
   hash functions with fixed output, with extendable output, and with
   variable output [#4]
+* Add `udigest::inline_struct!` macro [#4]
+* fix: handle cases when `EncodeValue` is dropped without being used
 
 [#4]: https://github.com/dfns/udigest/pull/4
 
