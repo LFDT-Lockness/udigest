@@ -385,8 +385,13 @@ impl<'b, B: Buffer> EncodeLeaf<'b, B> {
     /// Appends a bytestring
     ///
     /// Encoded value will correspond to concatenation of all the chained bytestrings
+    ///
+    /// ## Panic
+    /// Panics if total length of the leaf overflows `usize`
+    #[allow(clippy::expect_used)]
     pub fn update(&mut self, bytes: &[u8]) {
         self.buffer.write(bytes);
+
         self.len = self
             .len
             .checked_add(bytes.len())
@@ -449,6 +454,10 @@ impl<'b, B: Buffer> EncodeList<'b, B> {
     /// Adds an item to the list
     ///
     /// Returns an encoder that shall be used to encode a value of the item
+    ///
+    /// ## Panic
+    /// Panics if list length overflows `usize`
+    #[allow(clippy::expect_used)]
     pub fn add_item(&mut self) -> EncodeValue<B> {
         self.len = self.len.checked_add(1).expect("list len overflows usize");
         EncodeValue::new(self.buffer)
@@ -503,7 +512,11 @@ pub fn encode_len(buffer: &mut impl Buffer, len: usize) {
             let len = len.to_be_bytes();
             let leading_zeroes = len.iter().take_while(|b| **b == 0).count();
             let len = &len[leading_zeroes..];
-            let len_of_len = u8::try_from(len.len()).expect("usize is more than 256 bytes long");
+
+            #[allow(clippy::expect_used)]
+            let len_of_len = u8::try_from(len.len())
+                .expect("it's impossible that usize is more than 256 bytes long");
+
             buffer.write(len);
             buffer.write(&[len_of_len]);
             buffer.write(&[BIGLEN]);

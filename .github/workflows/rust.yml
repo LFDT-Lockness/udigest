@@ -66,4 +66,4 @@ jobs:
       with:
         cache-on-failure: "true"
     - name: Run clippy
-      run: cargo clippy -- -D clippy::all
+      run: cargo clippy --all-features -- -D clippy::all
