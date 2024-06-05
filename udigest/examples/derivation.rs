@@ -12,6 +12,6 @@ fn main() {
         job_title: "cryptographer".into(),
     };
 
-    let hash = udigest::hash::<sha2::Sha256, _>(&person);
+    let hash = udigest::hash::<sha2::Sha256>(&person);
     println!("{}", hex::encode(hash));
 }

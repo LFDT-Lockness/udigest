@@ -32,7 +32,7 @@
 //!     job_title: "cryptographer".into(),
 //! };
 //!
-//! let hash = udigest::hash::<sha2::Sha256, _>(&alice);
+//! let hash = udigest::hash::<sha2::Sha256>(&alice);
 //! ```
 //!
 //! The crate intentionally does not try to follow any existing standards for unambiguous
@@ -95,8 +95,8 @@ pub use encoding::Buffer;
 ///   let person_b = PersonB{ name: b"Alice".to_vec() };
 ///   
 ///   assert_eq!(
-///       udigest::hash::<sha2::Sha256, _>(&person_a),
-///       udigest::hash::<sha2::Sha256, _>(&person_b),
+///       udigest::hash::<sha2::Sha256>(&person_a),
+///       udigest::hash::<sha2::Sha256>(&person_b),
 ///   )
 ///   ```
 ///   `person_a` and `person_b` have exactly the same hash as they have the same bytes
@@ -207,7 +207,7 @@ pub mod inline_struct;
 
 /// Digests a structured `value` using fixed-output hash function (like sha2-256)
 #[cfg(feature = "digest")]
-pub fn hash<D: digest::Digest, T: Digestable>(value: &T) -> digest::Output<D> {
+pub fn hash<D: digest::Digest>(value: &impl Digestable) -> digest::Output<D> {
     let mut hash = encoding::BufferDigest(D::new());
     value.unambiguously_encode(encoding::EncodeValue::new(&mut hash));
     hash.0.finalize()
@@ -230,9 +230,8 @@ pub fn hash_iter<D: digest::Digest>(
 
 /// Digests a structured `value` using extendable-output hash function (like shake-256)
 #[cfg(feature = "digest")]
-pub fn hash_xof<D, T>(value: &T) -> D::Reader
+pub fn hash_xof<D>(value: &impl Digestable) -> D::Reader
 where
-    T: Digestable,
     D: Default + digest::Update + digest::ExtendableOutput,
 {
     let mut hash = encoding::BufferUpdate(D::default());
@@ -258,9 +257,8 @@ where
 
 /// Digests a structured `value` using variable-output hash function (like blake2b)
 #[cfg(feature = "digest")]
-pub fn hash_vof<D, T>(value: &T, out: &mut [u8]) -> Result<(), digest::InvalidOutputSize>
+pub fn hash_vof<D>(value: &impl Digestable, out: &mut [u8]) -> Result<(), digest::InvalidOutputSize>
 where
-    T: Digestable,
     D: digest::VariableOutput + digest::Update,
 {
     let mut hash = encoding::BufferUpdate(D::new(out.len())?);

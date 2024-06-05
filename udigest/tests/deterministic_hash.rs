@@ -19,13 +19,13 @@ const BOB: Person = Person {
 
 #[test]
 fn sha2_256() {
-    let alice_hash = udigest::hash::<sha2::Sha256, _>(&ALICE);
+    let alice_hash = udigest::hash::<sha2::Sha256>(&ALICE);
     assert_eq!(
         hex::encode(alice_hash.as_slice()),
         "99e258d6a6ccc430a50dcbf4e9c8cfb59ad0b94b96b83f0182a9a68eb1c5438f",
     );
 
-    let bob_hash = udigest::hash::<sha2::Sha256, _>(&BOB);
+    let bob_hash = udigest::hash::<sha2::Sha256>(&BOB);
     assert_eq!(
         hex::encode(bob_hash.as_slice()),
         "28474b5dec79b222b74badc2d78f9f81c0fbfd1ee04a134947cd07f44237ade3",
@@ -37,7 +37,7 @@ fn shake256() {
     use digest::XofReader;
 
     let mut hash = [0u8; 123];
-    let mut alice_hash_reader = udigest::hash_xof::<sha3::Shake256, _>(&ALICE);
+    let mut alice_hash_reader = udigest::hash_xof::<sha3::Shake256>(&ALICE);
     alice_hash_reader.read(&mut hash);
     assert_eq!(
         hex::encode(&hash),
@@ -47,7 +47,7 @@ fn shake256() {
         5fae7f8e4958ceb38962fc8e6fc56e32bef4e88f64bc8a88f88a"
     );
 
-    let mut bob_hash_reader = udigest::hash_xof::<sha3::Shake256, _>(&BOB);
+    let mut bob_hash_reader = udigest::hash_xof::<sha3::Shake256>(&BOB);
     bob_hash_reader.read(&mut hash);
     assert_eq!(
         hex::encode(&hash),
@@ -62,14 +62,14 @@ fn shake256() {
 fn blake2b() {
     let mut out = [0u8; 63];
 
-    udigest::hash_vof::<blake2::Blake2bVar, _>(&ALICE, &mut out).unwrap();
+    udigest::hash_vof::<blake2::Blake2bVar>(&ALICE, &mut out).unwrap();
     assert_eq!(
         hex::encode(&out),
         "91d1ce144fd46ed5400895c8db5f2b39c95870020c6627af034a9fa09c2f2cc3\
         f4c8c7d4e8d38ff16e4f54360b4387c0439cf30c51c21c78f904cda9205023"
     );
 
-    udigest::hash_vof::<blake2::Blake2bVar, _>(&BOB, &mut out).unwrap();
+    udigest::hash_vof::<blake2::Blake2bVar>(&BOB, &mut out).unwrap();
     assert_eq!(
         hex::encode(&out),
         "2f916c687c82c0f37d31df061c0453e98d0655e1877d4a55ec1507514822a2c4\

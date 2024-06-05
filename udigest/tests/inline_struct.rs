@@ -6,12 +6,12 @@ fn no_tag() {
         age: u32,
     }
 
-    let hash_expected = udigest::hash::<sha2::Sha256, _>(&Person {
+    let hash_expected = udigest::hash::<sha2::Sha256>(&Person {
         name: "Alice",
         age: 24,
     });
 
-    let hash_actual = udigest::hash::<sha2::Sha256, _>(&udigest::inline_struct!({
+    let hash_actual = udigest::hash::<sha2::Sha256>(&udigest::inline_struct!({
         name: "Alice",
         age: 24_u32,
     }));
@@ -28,12 +28,12 @@ fn with_tag() {
         age: u32,
     }
 
-    let hash_expected = udigest::hash::<sha2::Sha256, _>(&Person {
+    let hash_expected = udigest::hash::<sha2::Sha256>(&Person {
         name: "Alice",
         age: 24,
     });
 
-    let hash_actual = udigest::hash::<sha2::Sha256, _>(&udigest::inline_struct!("some_tag" {
+    let hash_actual = udigest::hash::<sha2::Sha256>(&udigest::inline_struct!("some_tag" {
         name: "Alice",
         age: 24_u32,
     }));
@@ -55,7 +55,7 @@ fn embedded_structs() {
         receive_newsletter: bool,
     }
 
-    let hash_expected = udigest::hash::<sha2::Sha256, _>(&Person {
+    let hash_expected = udigest::hash::<sha2::Sha256>(&Person {
         name: "Alice",
         age: 24,
         preferences: Preferences {
@@ -64,7 +64,7 @@ fn embedded_structs() {
         },
     });
 
-    let hash_actual = udigest::hash::<sha2::Sha256, _>(&udigest::inline_struct!({
+    let hash_actual = udigest::hash::<sha2::Sha256>(&udigest::inline_struct!({
         name: "Alice",
         age: 24_u32,
         preferences: udigest::inline_struct!({

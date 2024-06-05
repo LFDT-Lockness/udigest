@@ -5,7 +5,7 @@
 //! used instead:
 //!
 //! ```rust
-//! let hash = udigest::hash::<sha2::Sha256, _>(&udigest::inline_struct!({
+//! let hash = udigest::hash::<sha2::Sha256>(&udigest::inline_struct!({
 //!     name: "Alice",
 //!     age: 24_u32,
 //! }));
@@ -20,7 +20,7 @@
 //!     age: u32,
 //! }
 //!
-//! let hash = udigest::hash::<sha2::Sha256, _>(&Person {
+//! let hash = udigest::hash::<sha2::Sha256>(&Person {
 //!     name: "Alice",
 //!     age: 24,
 //! });
@@ -98,7 +98,7 @@ impl<'a, F: FieldsList + 'a> crate::Digestable for InlineStruct<'a, F> {
 /// ## Usage
 /// The code snippet below inlines `struct Person { name: &str, age: u32 }`.
 /// ```rust
-/// let hash = udigest::hash::<sha2::Sha256, _>(&udigest::inline_struct!({
+/// let hash = udigest::hash::<sha2::Sha256>(&udigest::inline_struct!({
 ///     name: "Alice",
 ///     age: 24_u32,
 /// }));
@@ -106,7 +106,7 @@ impl<'a, F: FieldsList + 'a> crate::Digestable for InlineStruct<'a, F> {
 ///
 /// You may add a domain separation tag:
 /// ```rust
-/// let hash = udigest::hash::<sha2::Sha256, _>(
+/// let hash = udigest::hash::<sha2::Sha256>(
 ///     &udigest::inline_struct!("some tag" {
 ///         name: "Alice",
 ///         age: 24_u32,
@@ -116,7 +116,7 @@ impl<'a, F: FieldsList + 'a> crate::Digestable for InlineStruct<'a, F> {
 ///
 /// Several structs may be embedded in each other:
 /// ```rust
-/// let hash = udigest::hash::<sha2::Sha256, _>(&udigest::inline_struct!({
+/// let hash = udigest::hash::<sha2::Sha256>(&udigest::inline_struct!({
 ///     name: "Alice",
 ///     age: 24_u32,
 ///     preferences: udigest::inline_struct!({
