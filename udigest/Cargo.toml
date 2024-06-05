@@ -1,6 +1,6 @@
 [package]
 name = "udigest"
-version = "0.1.0"
+version = "0.2.0-rc1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Unambiguously digest structured data"
@@ -11,27 +11,44 @@ readme = "../README.md"
 
 [package.metadata.docs.rs]
 all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-digest = { version = "0.10", default-features = false }
+digest = { version = "0.10", default-features = false, optional = true }
 
 udigest-derive = { version = "0.1", optional = true }
 
 [dev-dependencies]
-sha2 = "0.10"
 hex = "0.4"
 
+sha2 = "0.10"
+sha3 = "0.10"
+blake2 = "0.10"
+
 [features]
+default = ["digest", "std", "inline-struct"]
+
 std = ["alloc"]
 alloc = []
 derive = ["dep:udigest-derive"]
 
+digest = ["dep:digest"]
+inline-struct = []
+
 [[test]]
 name = "derive"
-required-features = ["std", "derive"]
+required-features = ["std", "derive", "digest"]
+
+[[test]]
+name = "deterministic_hash"
+required-features = ["derive", "digest"]
+
+[[test]]
+name = "inline_struct"
+required-features = ["derive", "inline-struct"]
 
 [[example]]
 name = "derivation"
-required-features = ["std", "derive"]
+required-features = ["std", "derive", "digest"]

@@ -3,7 +3,7 @@
 //! The core of the crate is functionality to unambiguously encode any structured data
 //! into bytes. It's then used to digest any data into a hash. Note that this module
 //! provides low-level implementation details which you normally don't need to know
-//! unless you manually implemenet [Digestable](crate::Digestable) trait.
+//! unless you manually implement [Digestable](crate::Digestable) trait.
 //!
 //! Any structured `value` is encoded either as a bytestring or as a list (each element
 //! within the list is either a bytestring or a list). The simplified grammar can be seen as
@@ -18,7 +18,7 @@
 //! Encoding goal is to distinguish `["12", "3"]` from `["1", "23"]`, `["1", [], "2"]`
 //! from `["1", "2"]` and so on. Now, we only need to map any structured data onto
 //! that grammar to have an unambiguous encoding. Below, we will show how Rust structures
-//! can be mapped onto the lists, and then we descrive how exactly encoding works.
+//! can be mapped onto the lists, and then we describe how exactly encoding works.
 //!
 //! # Mapping Rust types onto lists
 //!
@@ -188,9 +188,25 @@ pub trait Buffer {
     fn write(&mut self, bytes: &[u8]);
 }
 
-impl<D: digest::Digest> Buffer for D {
+/// Wraps [`digest::Digest`] and implements [`Buffer`]
+#[cfg(feature = "digest")]
+pub struct BufferDigest<D: digest::Digest>(pub D);
+
+#[cfg(feature = "digest")]
+impl<D: digest::Digest> Buffer for BufferDigest<D> {
     fn write(&mut self, bytes: &[u8]) {
-        self.update(bytes)
+        self.0.update(bytes)
+    }
+}
+
+/// Wraps [`digest::Update`] and implements [`Buffer`]
+#[cfg(feature = "digest")]
+pub struct BufferUpdate<D: digest::Update>(pub D);
+
+#[cfg(feature = "digest")]
+impl<D: digest::Update> Buffer for BufferUpdate<D> {
+    fn write(&mut self, bytes: &[u8]) {
+        self.0.update(bytes)
     }
 }
 
@@ -199,23 +215,27 @@ impl<D: digest::Digest> Buffer for D {
 /// Can be used to encode (only) a single value. Value can be a leaf (bytestring) or a list of values.
 #[must_use = "encoder must be used to encode a value"]
 pub struct EncodeValue<'b, B: Buffer> {
-    buffer: &'b mut B,
+    buffer: Option<&'b mut B>,
 }
 
 impl<'b, B: Buffer> EncodeValue<'b, B> {
     /// Constructs an encoder
     pub fn new(buffer: &'b mut B) -> Self {
-        Self { buffer }
+        Self {
+            buffer: Some(buffer),
+        }
     }
 
     /// Encodes a list
-    pub fn encode_list(self) -> EncodeList<'b, B> {
-        EncodeList::new(self.buffer)
+    pub fn encode_list(mut self) -> EncodeList<'b, B> {
+        #[allow(clippy::expect_used)]
+        EncodeList::new(self.buffer.take().expect("buffer must be available"))
     }
 
     /// Encodes a leaf (bytestring)
-    pub fn encode_leaf(self) -> EncodeLeaf<'b, B> {
-        EncodeLeaf::new(self.buffer)
+    pub fn encode_leaf(mut self) -> EncodeLeaf<'b, B> {
+        #[allow(clippy::expect_used)]
+        EncodeLeaf::new(self.buffer.take().expect("buffer must be available"))
     }
 
     /// Encodes a leaf value
@@ -228,15 +248,26 @@ impl<'b, B: Buffer> EncodeValue<'b, B> {
     /// Encodes a struct
     ///
     /// Struct is represented as a list: `[field_name1, field_value1, ...]`
-    pub fn encode_struct(self) -> EncodeStruct<'b, B> {
-        EncodeStruct::new(self.buffer)
+    pub fn encode_struct(mut self) -> EncodeStruct<'b, B> {
+        #[allow(clippy::expect_used)]
+        EncodeStruct::new(self.buffer.take().expect("buffer must be available"))
     }
 
     /// Encodes an enum
     ///
     /// Enum is represented as a list: `["variant", variant_name, field_name1, field_value1, ...]`
-    pub fn encode_enum(self) -> EncodeEnum<'b, B> {
-        EncodeEnum::new(self.buffer)
+    pub fn encode_enum(mut self) -> EncodeEnum<'b, B> {
+        #[allow(clippy::expect_used)]
+        EncodeEnum::new(self.buffer.take().expect("buffer must be available"))
+    }
+}
+
+impl<'b, B: Buffer> Drop for EncodeValue<'b, B> {
+    fn drop(&mut self) {
+        if let Some(buffer) = &mut self.buffer {
+            // buffer is not consumed -- we write an empty leaf
+            EncodeLeaf::new(*buffer).finish()
+        }
     }
 }
 
@@ -312,15 +343,15 @@ impl<'b, B: Buffer> EncodeStruct<'b, B> {
         self
     }
 
-    /// Adds a fiels to the structure
+    /// Adds a fields to the structure
     ///
-    /// Returns an encoder that shall be used to encode the fiels value
+    /// Returns an encoder that shall be used to encode the fields value
     pub fn add_field(&mut self, field_name: impl AsRef<[u8]>) -> EncodeValue<B> {
         self.list.add_leaf().chain(field_name);
         self.list.add_item()
     }
 
-    /// Finilizes the encoding, puts the necessary metadata to the buffer
+    /// Finalizes the encoding, puts the necessary metadata to the buffer
     ///
     /// It's an alias to dropping the encoder
     pub fn finish(self) {}
@@ -369,15 +400,20 @@ impl<'b, B: Buffer> EncodeLeaf<'b, B> {
     /// Appends a bytestring
     ///
     /// Encoded value will correspond to concatenation of all the chained bytestrings
+    ///
+    /// ## Panic
+    /// Panics if total length of the leaf overflows `usize`
+    #[allow(clippy::expect_used)]
     pub fn update(&mut self, bytes: &[u8]) {
         self.buffer.write(bytes);
+
         self.len = self
             .len
             .checked_add(bytes.len())
             .expect("leaf length overflows `usize`")
     }
 
-    /// Finilizes the encoding, puts the necessary metadata to the buffer
+    /// Finalizes the encoding, puts the necessary metadata to the buffer
     ///
     /// It's an alias to dropping the encoder
     pub fn finish(self) {}
@@ -433,6 +469,10 @@ impl<'b, B: Buffer> EncodeList<'b, B> {
     /// Adds an item to the list
     ///
     /// Returns an encoder that shall be used to encode a value of the item
+    ///
+    /// ## Panic
+    /// Panics if list length overflows `usize`
+    #[allow(clippy::expect_used)]
     pub fn add_item(&mut self) -> EncodeValue<B> {
         self.len = self.len.checked_add(1).expect("list len overflows usize");
         EncodeValue::new(self.buffer)
@@ -452,7 +492,7 @@ impl<'b, B: Buffer> EncodeList<'b, B> {
         self.add_item().encode_list()
     }
 
-    /// Finilizes the encoding, puts the necessary metadata to the buffer
+    /// Finalizes the encoding, puts the necessary metadata to the buffer
     ///
     /// It's an alias to dropping the encoder
     pub fn finish(self) {}
@@ -475,7 +515,7 @@ impl<'b, B: Buffer> Drop for EncodeList<'b, B> {
 
 /// Encodes length of list or leaf
 ///
-/// Altough we expose how the length is encoded, normally you should use [EncodeList]
+/// Although we expose how the length is encoded, normally you should use [EncodeList]
 /// and [EncodeLeaf] which use this function internally
 pub fn encode_len(buffer: &mut impl Buffer, len: usize) {
     match u32::try_from(len) {
@@ -487,7 +527,11 @@ pub fn encode_len(buffer: &mut impl Buffer, len: usize) {
             let len = len.to_be_bytes();
             let leading_zeroes = len.iter().take_while(|b| **b == 0).count();
             let len = &len[leading_zeroes..];
-            let len_of_len = u8::try_from(len.len()).expect("usize is more than 256 bytes long");
+
+            #[allow(clippy::expect_used)]
+            let len_of_len = u8::try_from(len.len())
+                .expect("it's impossible that usize is more than 256 bytes long");
+
             buffer.write(len);
             buffer.write(&[len_of_len]);
             buffer.write(&[BIGLEN]);

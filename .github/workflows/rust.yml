@@ -9,29 +9,31 @@ env:
   CARGO_NET_GIT_FETCH_WITH_CLI: true
 
 jobs:
-  build-and-test:
+  check-and-test:
     strategy:
       matrix:
-        features: ["", "derive", "derive,alloc", "derive,std"]
+        features: ["", "derive", "derive,alloc", "derive,std", "digest", "digest,std"]
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
     - uses: Swatinem/rust-cache@v2
       with:
         cache-on-failure: "true"
-    - name: Build
-      run: cargo build -p udigest --features "${{ matrix.features }}"
+    - name: Check
+      run: cargo check -p udigest --features "${{ matrix.features }}"
     - name: Run tests
       run: cargo test -p udigest --lib --tests --features "${{ matrix.features }}"
-  doctest:
+  test-all-features:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
     - uses: Swatinem/rust-cache@v2
       with:
         cache-on-failure: "true"
-    - name: Doctests
-      run: cargo test --doc --all-features
+    - name: Check
+      run: cargo check -p udigest --all-features
+    - name: Run tests
+      run: cargo test -p udigest --all-features
   run-examples:
     runs-on: ubuntu-latest
     steps:
@@ -64,4 +66,10 @@ jobs:
       with:
         cache-on-failure: "true"
     - name: Run clippy
-      run: cargo clippy -- -D clippy::all
+      run: cargo clippy --all-features -- -D clippy::all
+  check-changelog:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Check changelogs
+      run: ./.github/changelog.sh
