@@ -67,3 +67,9 @@ jobs:
         cache-on-failure: "true"
     - name: Run clippy
       run: cargo clippy --all-features -- -D clippy::all
+  check-changelog:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Check changelogs
+      run: ./.github/changelog.sh
