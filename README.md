@@ -32,7 +32,7 @@ let alice = Person {
     job_title: "cryptographer".into(),
 };
 
-let hash = udigest::hash::<sha2::Sha256, _>(&alice);
+let hash = udigest::hash::<sha2::Sha256>(&alice);
 ```
 
 The crate intentionally does not try to follow any existing standards for unambiguous
