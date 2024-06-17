@@ -172,3 +172,54 @@ fn encode_biglen() {
 
     assert_eq!(buf.0, [1, 0, 0, 0, 0, 5, BIGLEN]);
 }
+
+#[test]
+fn encode_integers() {
+    fn encoding(value: impl udigest::Digestable) -> Vec<u8> {
+        let mut buf = VecBuf(vec![]);
+        let encoder = EncodeValue::new(&mut buf);
+        value.unambiguously_encode(encoder);
+        buf.0
+    }
+    fn expect<T: udigest::Digestable + std::fmt::Debug>(value: T, expected: &[u8]) {
+        let actual = hex::encode(encoding(&value));
+
+        let expected_len = u32::try_from(expected.len()).unwrap().to_be_bytes();
+        let expected = concat_bytes_into_vec!(expected, expected_len, [LEN_32, LEAF]);
+        let expected = hex::encode(expected);
+        assert_eq!(actual, expected, "encoding of {value:?}");
+    }
+    fn expect_eq<
+        A: udigest::Digestable + std::fmt::Debug,
+        B: udigest::Digestable + std::fmt::Debug,
+    >(
+        lhs: A,
+        rhs: B,
+    ) {
+        let lhs = hex::encode(encoding(lhs));
+        let rhs = hex::encode(encoding(rhs));
+        assert_eq!(lhs, rhs, "{lhs:?} != {rhs:?}");
+    }
+
+    expect(0_u16, &[0]);
+    expect(1_u16, &[1]);
+    expect(255_u16, &[255]);
+    expect(256_u16, &[1, 0]);
+
+    expect_eq(1_u16, 1_usize);
+    expect_eq(1000_u16, 1000_usize);
+    expect_eq(1_000_000_usize, 1_000_000_u64);
+
+    expect(0_i16, &[0, 0]);
+    expect(1_i16, &[1, 1]);
+    expect(255_i16, &[1, 255]);
+    expect(256_i16, &[1, 1, 0]);
+
+    expect(-1i16, &[0, 1]);
+    expect(-255_i16, &[0, 255]);
+    expect(-256_i16, &[0, 1, 0]);
+
+    expect_eq(1_i16, 1_isize);
+    expect_eq(1000_i16, 1000_isize);
+    expect_eq(1_000_000_isize, 1_000_000_i64);
+}
