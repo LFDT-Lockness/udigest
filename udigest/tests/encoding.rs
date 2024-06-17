@@ -201,7 +201,7 @@ fn encode_integers() {
         assert_eq!(lhs, rhs, "{lhs:?} != {rhs:?}");
     }
 
-    expect(0_u16, &[0]);
+    expect(0_u16, &[]);
     expect(1_u16, &[1]);
     expect(255_u16, &[255]);
     expect(256_u16, &[1, 0]);
@@ -210,7 +210,7 @@ fn encode_integers() {
     expect_eq(1000_u16, 1000_usize);
     expect_eq(1_000_000_usize, 1_000_000_u64);
 
-    expect(0_i16, &[0, 0]);
+    expect(0_i16, &[]);
     expect(1_i16, &[1, 1]);
     expect(255_i16, &[1, 255]);
     expect(256_i16, &[1, 1, 0]);

@@ -332,16 +332,17 @@ fn encode_signed_integer<B: Buffer>(
     encoder: encoding::EncodeValue<B>,
 ) {
     let leading_zeroes = abs_be_bytes.iter().take_while(|b| **b == 0).count();
-    let truncated_be_bytes = if leading_zeroes < abs_be_bytes.len() {
-        &abs_be_bytes[leading_zeroes..]
+    let truncated_be_bytes = &abs_be_bytes[leading_zeroes..];
+    if truncated_be_bytes.is_empty() {
+        // zero is encoded as empty bytestring
+        encoder.encode_leaf_value([])
     } else {
-        &[0]
-    };
-    encoder
-        .encode_leaf()
-        .chain([u8::from(is_positive)])
-        .chain(truncated_be_bytes)
-        .finish()
+        encoder
+            .encode_leaf()
+            .chain([u8::from(is_positive)])
+            .chain(truncated_be_bytes)
+            .finish()
+    }
 }
 
 macro_rules! digestable_unsigned_integers {
@@ -357,11 +358,8 @@ macro_rules! digestable_unsigned_integers {
 /// Encodes an integer without leading zeroes
 fn encode_unsigned_integer<B: Buffer>(be_bytes: &[u8], encoder: encoding::EncodeValue<B>) {
     let leading_zeroes = be_bytes.iter().take_while(|b| **b == 0).count();
-    encoder.encode_leaf_value(if leading_zeroes < be_bytes.len() {
-        &be_bytes[leading_zeroes..]
-    } else {
-        &[0]
-    })
+    let truncated_be_bytes = &be_bytes[leading_zeroes..];
+    encoder.encode_leaf_value(truncated_be_bytes)
 }
 
 digestable_signed_integers!(i8, i16, i32, i64, i128, isize);
