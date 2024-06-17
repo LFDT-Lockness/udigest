@@ -11,14 +11,13 @@
 //! * Integers:
 //!   `i8`, `i16`, `i32`, `i64`, `i128`,
 //!   `u8`, `u16`, `u32`, `u64`, `u128`,
-//!   `char`
+//!   `char`, `isize`, `usize`
 //! * Containers: `Box`, `Arc`, `Rc`, `Cow`, `Option`, `Result`
 //! * Collections: arrays, slices, `Vec`, `LinkedList`, `VecDeque`, `BTreeSet`, `BTreeMap`
 //!
 //! The trait is intentionally not implemented for certain types:
 //!
 //! * `HashMap`, `HashSet` as they can not be traversed in deterministic order
-//! * `usize`, `isize` as their byte size varies on different platforms
 //!
 //! The `Digestable` trait can be implemented for the struct using [a macro](derive@Digestable):
 //! ```rust
@@ -312,17 +311,59 @@ impl<T: AsRef<[u8]> + ?Sized> Digestable for Bytes<T> {
     }
 }
 
-macro_rules! digestable_integers {
+macro_rules! digestable_signed_integers {
     ($($type:ty),*) => {$(
         impl Digestable for $type {
             fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
-                encoder.encode_leaf().chain(self.to_be_bytes());
+                encode_signed_integer(
+                    self.is_positive(),
+                    &self.unsigned_abs().to_be_bytes(),
+                    encoder,
+                )
             }
         }
     )*};
 }
 
-digestable_integers!(i8, u8, i16, u16, i32, u32, i64, u64, i128, u128);
+/// Encodes an integer without leading zeroes
+fn encode_signed_integer<B: Buffer>(
+    is_positive: bool,
+    abs_be_bytes: &[u8],
+    encoder: encoding::EncodeValue<B>,
+) {
+    let leading_zeroes = abs_be_bytes.iter().take_while(|b| **b == 0).count();
+    let truncated_be_bytes = &abs_be_bytes[leading_zeroes..];
+    if truncated_be_bytes.is_empty() {
+        // zero is encoded as empty bytestring
+        encoder.encode_leaf_value([])
+    } else {
+        encoder
+            .encode_leaf()
+            .chain([u8::from(is_positive)])
+            .chain(truncated_be_bytes)
+            .finish()
+    }
+}
+
+macro_rules! digestable_unsigned_integers {
+    ($($type:ty),*) => {$(
+        impl Digestable for $type {
+            fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+                encode_unsigned_integer(&self.to_be_bytes(), encoder)
+            }
+        }
+    )*};
+}
+
+/// Encodes an integer without leading zeroes
+fn encode_unsigned_integer<B: Buffer>(be_bytes: &[u8], encoder: encoding::EncodeValue<B>) {
+    let leading_zeroes = be_bytes.iter().take_while(|b| **b == 0).count();
+    let truncated_be_bytes = &be_bytes[leading_zeroes..];
+    encoder.encode_leaf_value(truncated_be_bytes)
+}
+
+digestable_signed_integers!(i8, i16, i32, i64, i128, isize);
+digestable_unsigned_integers!(u8, u16, u32, u64, u128, usize);
 
 impl Digestable for bool {
     fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {

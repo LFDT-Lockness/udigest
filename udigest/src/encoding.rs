@@ -66,8 +66,14 @@
 //!
 //! ### Primitive types
 //! Primitive values can be encoded as bytestrings as long as they can be unambiguously converted to bytes.
-//! For instance, any integer can be converted into bytes using [to_be_bytes](u32::to_be_bytes). Strings can
-//! be [converted to bytes](str::as_bytes) as well, and so on.
+//! For instance, strings are trivially converted to bytes via [`str::as_bytes`].
+//!
+//! Unsigned integers are encoded in big-endian representation truncated from leading zeroes. It allows
+//! us to unambiguously encode `usize` on different machines even if they have different size of machine
+//! word.
+//!
+//! Signed integers are encoded as concatenation of their sign and byte representation of their absolute
+//! value.
 //!
 //! ### Domain separation
 //! When value is encoded into bytes, it loses its type. For instance, "abcd" bytestring may correspond to
