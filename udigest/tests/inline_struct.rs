@@ -75,3 +75,28 @@ fn embedded_structs() {
 
     assert_eq!(hex::encode(hash_expected), hex::encode(hash_actual));
 }
+
+#[test]
+fn shorter_syntax() {
+    let name = "Alice";
+    let age = 24_u32;
+    let alice1 = udigest::inline_struct!({
+        name,
+        age,
+    });
+
+    let name = name.to_owned();
+    let alice2 = udigest::inline_struct!({
+        &name,
+        age,
+    });
+
+    assert_eq!(
+        udigest::hash::<sha2::Sha256>(&alice1),
+        udigest::hash::<sha2::Sha256>(&alice2),
+    );
+    drop(alice2);
+
+    // `name` is not consumed
+    drop(name);
+}

@@ -31,32 +31,19 @@
 /// Inline structure
 ///
 /// Normally, you don't need to use it directly. Use [`inline_struct!`] macro instead.
-pub struct InlineStruct<'a, F: FieldsList + 'a = Nil> {
+pub struct InlineStruct<'a, F: FieldsList + 'a> {
     fields_list: F,
     tag: Option<&'a [u8]>,
-}
-
-impl InlineStruct<'static> {
-    /// Creates inline struct with no fields
-    ///
-    /// Normally, you don't need to use it directly. Use [`inline_struct!`] macro instead.
-    #[allow(clippy::new_without_default)]
-    pub fn new() -> Self {
-        Self {
-            fields_list: Nil,
-            tag: None,
-        }
-    }
 }
 
 impl<'a, F: FieldsList + 'a> InlineStruct<'a, F> {
     /// Adds field to the struct
     ///
     /// Normally, you don't need to use it directly. Use [`inline_struct!`] macro instead.
-    pub fn add_field<V>(
+    pub fn add_field<V: 'a>(
         self,
         field_name: &'a str,
-        field_value: &'a V,
+        field_value: V,
     ) -> InlineStruct<'a, impl FieldsList + 'a>
     where
         F: 'a,
@@ -125,17 +112,64 @@ impl<'a, F: FieldsList + 'a> crate::Digestable for InlineStruct<'a, F> {
 ///     }),
 /// }));
 /// ```
+///
+/// Similar to regular struct construction, you may omit field value, then macro will be looking
+/// for a variable named the same as the field:
+/// ```rust
+/// let name = "Alice";
+/// let age = 24_u32;
+/// let hash = udigest::hash::<sha2::Sha256>(
+///     &udigest::inline_struct!({
+///         name,
+///         age,
+///     })
+/// );
+/// ```
+///
+/// You can also put an ampersand `&` before field name, then it will be taken by reference:
+/// ```rust
+/// let name: String = "Alice".into();
+/// let hash = udigest::hash::<sha2::Sha256>(
+///     &udigest::inline_struct!({
+///         &name,
+///         age: 24_u32,
+///     })
+/// );
+///
+/// // `name` is not consumed:
+/// println!("{name}")
+/// ```
 #[macro_export]
 macro_rules! inline_struct {
-    ({$($field_name:ident: $field_value:expr),*$(,)?}) => {{
-        $crate::inline_struct::InlineStruct::new()
-            $(.add_field(stringify!($field_name), &$field_value))*
+    ({$($fields:tt)*}) => {{
+        let s = $crate::inline_struct::builder();
+        $crate::inline_struct_helper!(s {$($fields)*})
     }};
-    ($tag:tt {$($field_name:ident: $field_value:expr),*$(,)?}) => {{
-        $crate::inline_struct::InlineStruct::new()
-            .set_tag($tag)
-            $(.add_field(stringify!($field_name), &$field_value))*
+    ($tag:tt {$($fields:tt)*}) => {{
+        $crate::inline_struct!({$($fields)*}).set_tag($tag)
+    }};
+}
 
+#[doc(hidden)]
+#[macro_export]
+macro_rules! inline_struct_helper {
+    ($s:ident {$field_name:ident: $field_value:expr $(, $($rest:tt)*)?}) => {{
+        let s = $s.add_field(stringify!($field_name), $field_value);
+        $crate::inline_struct_helper!(s {$($($rest)*)?})
+    }};
+    ($s:ident {$field_name:ident $(, $($rest:tt)*)?}) => {{
+        let s = $s.add_field(stringify!($field_name), $field_name);
+        $crate::inline_struct_helper!(s {$($($rest)*)?})
+    }};
+    ($s:ident {&$field_name:ident $(, $($rest:tt)*)?}) => {{
+        let s = $s.add_field(stringify!($field_name), &$field_name);
+        $crate::inline_struct_helper!(s {$($($rest)*)?})
+    }};
+    ($s:ident {,}) => {{
+        $s
+    }};
+    ($s:ident {}) => {{
+        $s
     }};
 }
 
@@ -153,25 +187,35 @@ pub trait FieldsList: sealed::Sealed {
     fn encode<B: crate::Buffer>(&self, encoder: &mut crate::encoding::EncodeStruct<B>);
 }
 
-/// Empty list of fields
+/// Creates [`InlineStruct`] with no fields
 ///
 /// Normally, you don't need to use it directly. Use [`inline_struct!`] macro instead.
-pub struct Nil;
-impl sealed::Sealed for Nil {}
-impl FieldsList for Nil {
-    fn encode<B: crate::Buffer>(&self, _encoder: &mut crate::encoding::EncodeStruct<B>) {
-        // Empty list - do nothing
+pub fn builder() -> InlineStruct<'static, impl FieldsList> {
+    /// Empty list of fields
+    ///
+    /// Normally, you don't need to use it directly. Use [`inline_struct!`] macro instead.
+    pub struct Nil;
+    impl sealed::Sealed for Nil {}
+    impl FieldsList for Nil {
+        fn encode<B: crate::Buffer>(&self, _encoder: &mut crate::encoding::EncodeStruct<B>) {
+            // Empty list - do nothing
+        }
+    }
+
+    InlineStruct {
+        fields_list: Nil,
+        tag: None,
     }
 }
 
-fn cons<'a, V, T>(field_name: &'a str, field_value: &'a V, tail: T) -> impl FieldsList + 'a
+fn cons<'a, V, T>(field_name: &'a str, field_value: V, tail: T) -> impl FieldsList + 'a
 where
-    V: crate::Digestable,
+    V: crate::Digestable + 'a,
     T: FieldsList + 'a,
 {
-    struct Cons<'a, V, T: 'a> {
+    struct Cons<'a, V: 'a, T: 'a> {
         field_name: &'a str,
-        field_value: &'a V,
+        field_value: V,
         tail: T,
     }
 
