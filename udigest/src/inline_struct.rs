@@ -40,14 +40,14 @@ impl<'a, F: FieldsList + 'a> InlineStruct<'a, F> {
     /// Adds field to the struct
     ///
     /// Normally, you don't need to use it directly. Use [`inline_struct!`] macro instead.
-    pub fn add_field<V: 'a>(
+    pub fn add_field<V>(
         self,
         field_name: &'a str,
         field_value: V,
     ) -> InlineStruct<'a, impl FieldsList + 'a>
     where
         F: 'a,
-        V: crate::Digestable,
+        V: crate::Digestable + 'a,
     {
         InlineStruct {
             fields_list: cons(field_name, field_value, self.fields_list),
