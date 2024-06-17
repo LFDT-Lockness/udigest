@@ -192,8 +192,6 @@ pub trait FieldsList: sealed::Sealed {
 /// Normally, you don't need to use it directly. Use [`inline_struct!`] macro instead.
 pub fn builder() -> InlineStruct<'static, impl FieldsList> {
     /// Empty list of fields
-    ///
-    /// Normally, you don't need to use it directly. Use [`inline_struct!`] macro instead.
     pub struct Nil;
     impl sealed::Sealed for Nil {}
     impl FieldsList for Nil {
