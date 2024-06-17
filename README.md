@@ -11,14 +11,13 @@ data can be anything that implements `Digestable` trait:
 * Integers:
   `i8`, `i16`, `i32`, `i64`, `i128`,
   `u8`, `u16`, `u32`, `u64`, `u128`,
-  `char`
+  `char`, `isize`, `usize`
 * Containers: `Box`, `Arc`, `Rc`, `Cow`, `Option`, `Result`
 * Collections: arrays, slices, `Vec`, `LinkedList`, `VecDeque`, `BTreeSet`, `BTreeMap`
 
 The trait is intentionally not implemented for certain types:
 
 * `HashMap`, `HashSet` as they can not be traversed in deterministic order
-* `usize`, `isize` as their byte size varies on different platforms
 
 The `Digestable` trait can be implemented for the struct using a macro:
 ```rust
