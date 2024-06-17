@@ -92,3 +92,13 @@ mod encoding {
         list.finish()
     }
 }
+
+#[derive(udigest::Digestable)]
+pub struct StructWithRefs<'a> {
+    field1: &'a str,
+    #[udigest(as_bytes)]
+    field2: &'a [u8],
+    field3: &'a String,
+    #[udigest(with = encoding::encode_bar)]
+    field4: &'a Bar,
+}

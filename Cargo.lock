@@ -158,23 +158,12 @@ dependencies = [
  "hex",
  "sha2",
  "sha3",
- "udigest-derive 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "udigest-derive",
 ]
 
 [[package]]
 name = "udigest-derive"
 version = "0.1.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "udigest-derive"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b29f121da05aa0857e7b96cf2f8782bd4140911506518486d4a125b97d7d609"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -58,7 +58,7 @@ jobs:
         cache-on-failure: "true"
     - name: Check docs
       run: RUSTDOCFLAGS="-D warnings" cargo doc --all-features --no-deps
-  check-clippy:
+  clippy:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -67,6 +67,15 @@ jobs:
         cache-on-failure: "true"
     - name: Run clippy
       run: cargo clippy --all-features -- -D clippy::all
+  clippy-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2
+      with:
+        cache-on-failure: "true"
+    - name: Run clippy
+      run: cargo clippy --all-features --tests -- -D clippy::all
   check-changelog:
     runs-on: ubuntu-latest
     steps:

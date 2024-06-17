@@ -399,16 +399,17 @@ fn encode_field(
                 let field_encoder = #encoder_var.add_field(#field_name);
                 let field_bytes = #func(#field_ref);
                 let field_bytes = AsRef::<[u8]>::as_ref(&field_bytes);
-                field_encoder.encode_leaf().chain(field_bytes);
+                field_encoder.encode_leaf_value(field_bytes);
             }},
             None => quote_spanned!(field_span => {
                 let field_encoder = #encoder_var.add_field(#field_name);
                 let field_bytes: &[u8] = AsRef::<[u8]>::as_ref(#field_ref);
-                field_encoder.encode_leaf().chain(field_bytes);
+                field_encoder.encode_leaf_value(field_bytes);
             }),
         },
         (None, Some(attrs::With { value: func, .. })) => quote_spanned! {field_span => {
             let field_encoder = #encoder_var.add_field(#field_name);
+            #[allow(clippy::needless_borrow)]
             #func(#field_ref, field_encoder);
         }},
         (None, None) => quote_spanned! {field_span => {
