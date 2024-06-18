@@ -47,6 +47,12 @@ impl InlineStruct<'static, Nil> {
     }
 }
 
+impl Default for InlineStruct<'static, Nil> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<'t, F: FieldsList> InlineStruct<'t, F> {
     /// Adds field to the struct
     ///
@@ -68,7 +74,7 @@ impl<'t, F: FieldsList> InlineStruct<'t, F> {
     /// Sets domain-separation tag
     ///
     /// Normally, you don't need to use it directly. Use [`inline_struct!`] macro instead.
-    pub fn set_tag<'t2, T: ?Sized + AsRef<[u8]>>(self, tag: &'t2 T) -> InlineStruct<'t2, F> {
+    pub fn set_tag<T: ?Sized + AsRef<[u8]>>(self, tag: &T) -> InlineStruct<F> {
         InlineStruct {
             fields_list: self.fields_list,
             tag: Some(tag.as_ref()),
@@ -234,7 +240,7 @@ impl<'a, V: crate::Digestable, T: FieldsList> FieldsList for Cons<'a, V, T> {
     }
 }
 
-fn cons<'a, V, T>(field_name: &'a str, field_value: V, tail: T) -> Cons<'a, V, T>
+fn cons<V, T>(field_name: &str, field_value: V, tail: T) -> Cons<V, T>
 where
     V: crate::Digestable,
     T: FieldsList,
