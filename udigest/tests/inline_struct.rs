@@ -95,8 +95,30 @@ fn shorter_syntax() {
         udigest::hash::<sha2::Sha256>(&alice1),
         udigest::hash::<sha2::Sha256>(&alice2),
     );
-    drop(alice2);
+    let _ = alice2;
 
     // `name` is not consumed
     drop(name);
+}
+
+#[test]
+fn impls_clone_copy() {
+    fn impls_clone<T: Clone>(_: &T) {}
+    fn impls_copy<T: Copy>(_: &T) {}
+
+    let name = "Alice".to_owned();
+    let age = 24_u32;
+
+    let alice = udigest::inline_struct!({
+        name,
+        age,
+    });
+    impls_clone(&alice);
+
+    let name = "Alice";
+    let alice = udigest::inline_struct!({
+        name,
+        age,
+    });
+    impls_copy(&alice);
 }

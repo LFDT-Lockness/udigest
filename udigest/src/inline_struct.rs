@@ -31,23 +31,33 @@
 /// Inline structure
 ///
 /// Normally, you don't need to use it directly. Use [`inline_struct!`] macro instead.
-pub struct InlineStruct<'a, F: FieldsList + 'a> {
+#[derive(Clone, Copy)]
+pub struct InlineStruct<'a, F: FieldsList> {
     fields_list: F,
     tag: Option<&'a [u8]>,
 }
 
-impl<'a, F: FieldsList + 'a> InlineStruct<'a, F> {
+impl InlineStruct<'static, Nil> {
+    /// Creates an empty struct with no fields
+    pub fn new() -> Self {
+        Self {
+            fields_list: Nil,
+            tag: None,
+        }
+    }
+}
+
+impl<'t, F: FieldsList> InlineStruct<'t, F> {
     /// Adds field to the struct
     ///
     /// Normally, you don't need to use it directly. Use [`inline_struct!`] macro instead.
-    pub fn add_field<V>(
+    pub fn add_field<'f, V>(
         self,
-        field_name: &'a str,
+        field_name: &'f str,
         field_value: V,
-    ) -> InlineStruct<'a, impl FieldsList + 'a>
+    ) -> InlineStruct<'t, Cons<'f, V, F>>
     where
-        F: 'a,
-        V: crate::Digestable + 'a,
+        V: crate::Digestable,
     {
         InlineStruct {
             fields_list: cons(field_name, field_value, self.fields_list),
@@ -58,13 +68,15 @@ impl<'a, F: FieldsList + 'a> InlineStruct<'a, F> {
     /// Sets domain-separation tag
     ///
     /// Normally, you don't need to use it directly. Use [`inline_struct!`] macro instead.
-    pub fn set_tag<T: ?Sized + AsRef<[u8]>>(mut self, tag: &'a T) -> Self {
-        self.tag = Some(tag.as_ref());
-        self
+    pub fn set_tag<'t2, T: ?Sized + AsRef<[u8]>>(self, tag: &'t2 T) -> InlineStruct<'t2, F> {
+        InlineStruct {
+            fields_list: self.fields_list,
+            tag: Some(tag.as_ref()),
+        }
     }
 }
 
-impl<'a, F: FieldsList + 'a> crate::Digestable for InlineStruct<'a, F> {
+impl<'a, F: FieldsList> crate::Digestable for InlineStruct<'a, F> {
     fn unambiguously_encode<B: crate::Buffer>(&self, encoder: crate::encoding::EncodeValue<B>) {
         let mut struct_encode = encoder.encode_struct();
         if let Some(tag) = self.tag {
@@ -142,7 +154,7 @@ impl<'a, F: FieldsList + 'a> crate::Digestable for InlineStruct<'a, F> {
 #[macro_export]
 macro_rules! inline_struct {
     ({$($fields:tt)*}) => {{
-        let s = $crate::inline_struct::builder();
+        let s = $crate::inline_struct::InlineStruct::new();
         $crate::inline_struct_helper!(s {$($fields)*})
     }};
     ($tag:tt {$($fields:tt)*}) => {{
@@ -187,49 +199,46 @@ pub trait FieldsList: sealed::Sealed {
     fn encode<B: crate::Buffer>(&self, encoder: &mut crate::encoding::EncodeStruct<B>);
 }
 
-/// Creates [`InlineStruct`] with no fields
+/// Empty list of fields
 ///
 /// Normally, you don't need to use it directly. Use [`inline_struct!`] macro instead.
-pub fn builder() -> InlineStruct<'static, impl FieldsList> {
-    /// Empty list of fields
-    pub struct Nil;
-    impl sealed::Sealed for Nil {}
-    impl FieldsList for Nil {
-        fn encode<B: crate::Buffer>(&self, _encoder: &mut crate::encoding::EncodeStruct<B>) {
-            // Empty list - do nothing
-        }
-    }
-
-    InlineStruct {
-        fields_list: Nil,
-        tag: None,
+#[derive(Clone, Copy)]
+pub struct Nil;
+impl sealed::Sealed for Nil {}
+impl FieldsList for Nil {
+    fn encode<B: crate::Buffer>(&self, _encoder: &mut crate::encoding::EncodeStruct<B>) {
+        // Empty list - do nothing
     }
 }
 
-fn cons<'a, V, T>(field_name: &'a str, field_value: V, tail: T) -> impl FieldsList + 'a
+/// Prepends a field to the list of fields
+///
+/// Normally, you don't need to use it directly. Use [`inline_struct!`] macro instead.
+#[derive(Clone, Copy)]
+pub struct Cons<'a, V, T> {
+    field_name: &'a str,
+    field_value: V,
+    tail: T,
+}
+
+impl<'a, V, T> sealed::Sealed for Cons<'a, V, T> {}
+
+impl<'a, V: crate::Digestable, T: FieldsList> FieldsList for Cons<'a, V, T> {
+    fn encode<B: crate::Buffer>(&self, encoder: &mut crate::encoding::EncodeStruct<B>) {
+        // Since we store fields from last to first, we need to encode the tail first
+        // to reverse order of fields
+        self.tail.encode(encoder);
+
+        let value_encoder = encoder.add_field(self.field_name);
+        self.field_value.unambiguously_encode(value_encoder);
+    }
+}
+
+fn cons<'a, V, T>(field_name: &'a str, field_value: V, tail: T) -> Cons<'a, V, T>
 where
-    V: crate::Digestable + 'a,
-    T: FieldsList + 'a,
+    V: crate::Digestable,
+    T: FieldsList,
 {
-    struct Cons<'a, V: 'a, T: 'a> {
-        field_name: &'a str,
-        field_value: V,
-        tail: T,
-    }
-
-    impl<'a, V, T: 'a> sealed::Sealed for Cons<'a, V, T> {}
-
-    impl<'a, V: crate::Digestable, T: FieldsList + 'a> FieldsList for Cons<'a, V, T> {
-        fn encode<B: crate::Buffer>(&self, encoder: &mut crate::encoding::EncodeStruct<B>) {
-            // Since we store fields from last to first, we need to encode the tail first
-            // to reverse order of fields
-            self.tail.encode(encoder);
-
-            let value_encoder = encoder.add_field(self.field_name);
-            self.field_value.unambiguously_encode(value_encoder);
-        }
-    }
-
     Cons {
         field_name,
         field_value,
