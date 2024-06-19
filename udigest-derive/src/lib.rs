@@ -409,7 +409,7 @@ fn encode_field(
         },
         (None, Some(attrs::With { value: func, .. })) => quote_spanned! {field_span => {
             let field_encoder = #encoder_var.add_field(#field_name);
-            #[allow(clippy::needless_borrow)]
+            #[allow(clippy::needless_borrow, clippy::needless_borrows_for_generic_args)]
             #func(#field_ref, field_encoder);
         }},
         (None, None) => quote_spanned! {field_span => {
