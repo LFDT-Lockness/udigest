@@ -11,7 +11,7 @@ All commits are required to be signed via verified GPG key. You can read about c
 in [this series of articles](https://docs.github.com/en/authentication/managing-commit-signature-verification)
 (we recommend using a hardware GPG token).
 
-All commits are required to be signed off by including `Signed-off-by: YOUR NAME <your_email@example.com` line.
+All commits are required to be signed off by including `Signed-off-by: YOUR NAME <your_email@example.com>` line.
 By doing this, you certify that the commit is compliant with [Developer Certificate of Origin (DCO)](https://developercertificate.org/),
 meaning that you wrote the code or otherwise have the right to submit the code you are
 contributing to the project.
