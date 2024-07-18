@@ -53,10 +53,12 @@ By making a contribution to this project, I certify that:
     this project or the open source license(s) involved.
 ```
 
+Commits can be automatically signed off automatically by using `-s` flag (i.e. `git commit -s`).
+
 ## Issues
 Feel free to open an issue if you found a bug, have a suggestion, or wish to
 communicate with us for other reasons.
 
 However, if you want to report something that you believe might be a security
 vulnerability or a security flaw in this or any upstream project, please report
-it following the procedure described in [SECURITY.md].
+it following the procedure described in [SECURITY.md](./SECURITY.md).
