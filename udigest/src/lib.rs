@@ -56,6 +56,8 @@
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std;
 
 pub use encoding::Buffer;
 
@@ -204,6 +206,9 @@ pub mod encoding;
 #[cfg(feature = "inline-struct")]
 pub mod inline_struct;
 
+pub mod as_;
+pub use as_::DigestAs;
+
 /// Digests a structured `value` using fixed-output hash function (like sha2-256)
 #[cfg(feature = "digest")]
 pub fn hash<D: digest::Digest>(value: &impl Digestable) -> digest::Output<D> {
@@ -307,7 +312,7 @@ pub struct Bytes<T: ?Sized>(pub T);
 
 impl<T: AsRef<[u8]> + ?Sized> Digestable for Bytes<T> {
     fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
-        self.0.as_ref().unambiguously_encode(encoder)
+        encoder.encode_leaf_value(self.0.as_ref())
     }
 }
 
