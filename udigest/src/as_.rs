@@ -1,4 +1,16 @@
 //! Provides utilities for custom digesting rules
+//!
+//! It's supposed to be used in a pair with derive proc macro and `as` attribute.
+//! For instance, it can be used to digest a hash map "as a btree map":
+//!   ```rust
+//!   #[derive(udigest::Digestable)]
+//!   pub struct Attributes(
+//!       #[udigest(as = std::collections::BTreeMap<_, udigest::Bytes>)]
+//!       std::collections::HashMap<String, Vec<u8>>,
+//!   );
+//!   ```
+//!
+//! See more examples in [macro@Digestable] macro docs.
 
 use crate::{encoding, Buffer, Digestable};
 

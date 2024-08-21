@@ -185,6 +185,47 @@ pub use encoding::Buffer;
 ///       todo!()
 ///   }
 ///   ```
+/// * `#[udigest(as = ...)]` \
+///   Tells to encode the field as another type `U`. Proc macro will use
+///   [`<U as DigestAs<FieldType>>::digest_as`](DigestAs) to encode this field.
+///
+///   It is similar to `#[udigest(with = ...)]` attribute described above which allows to specify
+///   a function which will be used to encode a field value. `#[udigest(as = ...)]` is designed for
+///   more complex use-cases. For instance, it can be used to digest a hash map:
+///
+///   ```rust
+///   #[derive(udigest::Digestable)]
+///   pub struct Attributes(
+///       #[udigest(as = std::collections::BTreeMap<_, udigest::Bytes>)]
+///       std::collections::HashMap<String, Vec<u8>>,
+///   );
+///   ```
+///
+///   When structure is digested, the hash map is converted into btree map. `_` in `BTreeMap<_, udigest::Bytes>`
+///   says that the key should be kept as it is: `String` string will be digested.
+///   `udigest::Bytes` indicates that the value `Vec<u8>` should be digested as bytes, not as
+///   list of u8 which would be a default behavior.
+///
+///   Similarly, if we have a field of type `Option<Vec<u8>>` and we want it to be encoded as
+///   bytes, we cannot use `#[udigest(as_bytes)]` as the field does not implement `AsRef<[u8]>`:
+///
+///   ```compile_fail
+///   #[derive(udigest::Digestable)]
+///   pub struct Data(
+///       #[udigest(as_bytes)]
+///       Option<Vec<u8>>,
+///   );
+///   ```
+///
+///   We can use `as` attribute instead:
+///   ```rust
+///   #[derive(udigest::Digestable)]
+///   pub struct Data(
+///       #[udigest(as = Option<udigest::Bytes>)]
+///       Option<Vec<u8>>,
+///   );
+///   ```
+///
 /// * `#[udigest(rename = "...")]` \
 ///   Specifies another name to use for the field. As field name gets mixed into the hash,
 ///   changing the field name will change the hash. Sometimes, it may be required to change
