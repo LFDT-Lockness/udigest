@@ -152,7 +152,7 @@ where
         crate::unambiguously_encode_iter(encoder, value.iter().map(As::<&T, &U>::new))
     }
 }
-
+#[cfg(feature = "alloc")]
 impl<T, U> DigestAs<alloc::collections::LinkedList<T>> for alloc::collections::LinkedList<U>
 where
     U: DigestAs<T>,
@@ -164,6 +164,7 @@ where
         crate::unambiguously_encode_iter(encoder, value.iter().map(As::<&T, &U>::new))
     }
 }
+#[cfg(feature = "alloc")]
 impl<T, U> DigestAs<alloc::collections::VecDeque<T>> for alloc::collections::VecDeque<U>
 where
     U: DigestAs<T>,
@@ -175,6 +176,7 @@ where
         crate::unambiguously_encode_iter(encoder, value.iter().map(As::<&T, &U>::new))
     }
 }
+#[cfg(feature = "alloc")]
 impl<T, U> DigestAs<alloc::collections::BTreeSet<T>> for alloc::collections::BTreeSet<U>
 where
     U: DigestAs<T>,
