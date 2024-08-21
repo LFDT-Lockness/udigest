@@ -98,3 +98,35 @@ fn option() {
 
     assert_eq!(hex::encode(expected), hex::encode(actual));
 }
+
+#[test]
+fn array() {
+    #[derive(udigest::Digestable)]
+    struct Foo {
+        #[udigest(as = [udigest::Bytes; 5])]
+        bar: [Vec<u8>; 5],
+    }
+
+    impl Foo {
+        fn digest_expected(&self) -> impl udigest::Digestable + '_ {
+            udigest::inline_struct!({
+                bar: self.bar.each_ref().map(udigest::Bytes),
+            })
+        }
+    }
+
+    let foo = Foo {
+        bar: [
+            b"abcd".to_vec(),
+            b"aaaa".to_vec(),
+            b"..-..---.-..-".to_vec(),
+            b"bbbbbb".to_vec(),
+            b"finally".to_vec(),
+        ],
+    };
+
+    let expected = common::encode_to_vec(&foo.digest_expected());
+    let actual = common::encode_to_vec(&foo);
+
+    assert_eq!(hex::encode(expected), hex::encode(actual));
+}
