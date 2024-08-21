@@ -49,6 +49,11 @@ required-features = ["derive", "digest"]
 name = "inline_struct"
 required-features = ["derive", "inline-struct"]
 
+[[test]]
+name = "digest_as"
+required-features = ["derive", "inline-struct"]
+
 [[example]]
 name = "derivation"
 required-features = ["std", "derive", "digest"]
+

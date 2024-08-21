@@ -18,6 +18,7 @@ pub enum Attr {
     Skip(Skip),
     Rename(Rename),
     With(With),
+    As(As),
 }
 
 impl Attr {
@@ -30,6 +31,7 @@ impl Attr {
             Attr::Skip(attr) => attr.skip.span,
             Attr::Rename(attr) => attr.rename.span,
             Attr::With(attr) => attr.with.span,
+            Attr::As(attr) => attr.as_.span,
         }
     }
 }
@@ -51,6 +53,8 @@ impl syn::parse::Parse for Attr {
             Rename::parse(input).map(Attr::Rename)
         } else if lookahead.peek(kw::with) {
             With::parse(input).map(Attr::With)
+        } else if lookahead.peek(syn::Token![as]) {
+            As::parse(input).map(Attr::As)
         } else {
             Err(lookahead.error())
         }
@@ -172,5 +176,20 @@ impl syn::parse::Parse for With {
         let _eq = input.parse()?;
         let value = input.parse()?;
         Ok(Self { with, _eq, value })
+    }
+}
+
+pub struct As {
+    pub as_: syn::Token![as],
+    pub _eq: syn::Token![=],
+    pub value: syn::Type,
+}
+
+impl syn::parse::Parse for As {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let as_ = input.parse()?;
+        let _eq = input.parse()?;
+        let value = input.parse()?;
+        Ok(Self { as_, _eq, value })
     }
 }

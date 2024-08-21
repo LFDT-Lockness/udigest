@@ -308,7 +308,7 @@ impl<T: Digestable + ?Sized> Digestable for &T {
 /// Wrapper for a bytestring
 ///
 /// Wraps any bytestring that `impl AsRef<[u8]>` and provides [`Digestable`] trait implementation
-pub struct Bytes<T: ?Sized>(pub T);
+pub struct Bytes<T: ?Sized = [u8; 0]>(pub T);
 
 impl<T: AsRef<[u8]> + ?Sized> Digestable for Bytes<T> {
     fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {

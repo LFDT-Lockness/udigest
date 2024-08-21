@@ -76,8 +76,7 @@ where
     }
 }
 
-/// Digests any bytestring that implements `impl AsRef<[u8]>`
-pub type Bytes = crate::Bytes<()>;
+pub use crate::Bytes;
 
 impl<T> DigestAs<T> for Bytes
 where
