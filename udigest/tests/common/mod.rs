@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 /// A buffer based on `Vec<u8>`. Writing to the buffer
 /// appends data to the vector
 pub struct VecBuf(pub Vec<u8>);
