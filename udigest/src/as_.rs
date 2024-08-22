@@ -304,3 +304,42 @@ where
         U::digest_as(value.as_ref(), encoder)
     }
 }
+
+macro_rules! impl_for_tuples {
+    ($($t:ident, $as:ident),*) => {
+        impl<$($t, $as),*> DigestAs<($($t,)*)> for ($($as,)*)
+        where
+            $($as: DigestAs<$t>),*
+        {
+            fn digest_as<Buf: Buffer>(value: &($($t,)*), encoder: encoding::EncodeValue<Buf>) {
+                #[allow(non_snake_case)]
+                let ($($t,)*) = value;
+                (
+                    $(As::<&$t, &$as>::new($t),)*
+                ).unambiguously_encode(encoder)
+            }
+        }
+    };
+}
+
+#[rustfmt::skip]
+mod tuples {
+    use super::*;
+
+    impl_for_tuples!(T, U);
+    impl_for_tuples!(T0, As0, T1, As1);
+    impl_for_tuples!(T0, As0, T1, As1, T2, As2);
+    impl_for_tuples!(T0, As0, T1, As1, T2, As2, T3, As3);
+    impl_for_tuples!(T0, As0, T1, As1, T2, As2, T3, As3, T4, As4);
+    impl_for_tuples!(T0, As0, T1, As1, T2, As2, T3, As3, T4, As4, T5, As5);
+    impl_for_tuples!(T0, As0, T1, As1, T2, As2, T3, As3, T4, As4, T5, As5, T6, As6);
+    impl_for_tuples!(T0, As0, T1, As1, T2, As2, T3, As3, T4, As4, T5, As5, T6, As6, T7, As7);
+    impl_for_tuples!(T0, As0, T1, As1, T2, As2, T3, As3, T4, As4, T5, As5, T6, As6, T7, As7, T8, As8);
+    impl_for_tuples!(T0, As0, T1, As1, T2, As2, T3, As3, T4, As4, T5, As5, T6, As6, T7, As7, T8, As8, T9, As9);
+    impl_for_tuples!(T0, As0, T1, As1, T2, As2, T3, As3, T4, As4, T5, As5, T6, As6, T7, As7, T8, As8, T9, As9, T10, As10);
+    impl_for_tuples!(T0, As0, T1, As1, T2, As2, T3, As3, T4, As4, T5, As5, T6, As6, T7, As7, T8, As8, T9, As9, T10, As10, T11, As11);
+    impl_for_tuples!(T0, As0, T1, As1, T2, As2, T3, As3, T4, As4, T5, As5, T6, As6, T7, As7, T8, As8, T9, As9, T10, As10, T11, As11, T12, As12);
+    impl_for_tuples!(T0, As0, T1, As1, T2, As2, T3, As3, T4, As4, T5, As5, T6, As6, T7, As7, T8, As8, T9, As9, T10, As10, T11, As11, T12, As12, T13, As13);
+    impl_for_tuples!(T0, As0, T1, As1, T2, As2, T3, As3, T4, As4, T5, As5, T6, As6, T7, As7, T8, As8, T9, As9, T10, As10, T11, As11, T12, As12, T13, As13, T14, As14);
+    impl_for_tuples!(T0, As0, T1, As1, T2, As2, T3, As3, T4, As4, T5, As5, T6, As6, T7, As7, T8, As8, T9, As9, T10, As10, T11, As11, T12, As12, T13, As13, T14, As14, T15, As15);
+}

@@ -480,10 +480,10 @@ impl<T: Digestable, E: Digestable> Digestable for Result<T, E> {
 
 macro_rules! digestable_tuple {
     ($($letter:ident),+) => {
-        impl<$($letter: Digestable),+> Digestable for ($($letter),+) {
+        impl<$($letter: Digestable),+> Digestable for ($($letter,)+) {
             fn unambiguously_encode<BUF: Buffer>(&self, encoder: encoding::EncodeValue<BUF>) {
                 #[allow(non_snake_case)]
-                let ($($letter),+) = self;
+                let ($($letter,)+) = self;
                 let mut list = encoder.encode_list();
                 $(
                     let item_encoder = list.add_item();
@@ -494,16 +494,23 @@ macro_rules! digestable_tuple {
     };
 }
 
-macro_rules! digestable_tuples {
-    ($letter:ident) => {};
-    ($letter:ident, $($others:ident),+) => {
-        digestable_tuple!($letter, $($others),+);
-        digestable_tuples!($($others),+);
-    }
-}
-
 // We support tuples with up to 16 elements
-digestable_tuples!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P);
+digestable_tuple!(A);
+digestable_tuple!(A, B);
+digestable_tuple!(A, B, C);
+digestable_tuple!(A, B, C, D);
+digestable_tuple!(A, B, C, D, E);
+digestable_tuple!(A, B, C, D, E, F);
+digestable_tuple!(A, B, C, D, E, F, G);
+digestable_tuple!(A, B, C, D, E, F, G, H);
+digestable_tuple!(A, B, C, D, E, F, G, H, I);
+digestable_tuple!(A, B, C, D, E, F, G, H, I, J);
+digestable_tuple!(A, B, C, D, E, F, G, H, I, J, K);
+digestable_tuple!(A, B, C, D, E, F, G, H, I, J, K, L);
+digestable_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M);
+digestable_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N);
+digestable_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O);
+digestable_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P);
 
 fn unambiguously_encode_iter<B: Buffer, T: Digestable>(
     encoder: encoding::EncodeValue<B>,
