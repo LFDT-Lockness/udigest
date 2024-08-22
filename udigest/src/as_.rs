@@ -209,6 +209,27 @@ where
     }
 }
 
+/// Digests `HashSet` by transforming it into `BTreeSet`
+#[cfg(feature = "std")]
+impl<T, U> DigestAs<std::collections::HashSet<T>> for alloc::collections::BTreeSet<U>
+where
+    U: DigestAs<T>,
+    T: core::cmp::Ord,
+{
+    fn digest_as<B: Buffer>(
+        value: &std::collections::HashSet<T>,
+        encoder: encoding::EncodeValue<B>,
+    ) {
+        let ordered_map = value
+            .iter()
+            .map(|x| As::<&T, &U>::new(x))
+            .collect::<alloc::collections::BTreeSet<_>>();
+
+        // ordered set has deterministic order, so we can reproducibly hash it
+        ordered_map.unambiguously_encode(encoder)
+    }
+}
+
 /// Digests `HashMap` by transforming it into `BTreeMap`
 #[cfg(feature = "std")]
 impl<K, KAs, V, VAs> DigestAs<std::collections::HashMap<K, V>>
