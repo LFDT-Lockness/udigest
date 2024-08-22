@@ -111,16 +111,16 @@ where
     }
 }
 
-impl<T1, T2, E1, E2> DigestAs<Result<T1, E1>> for Result<T2, E2>
+impl<T, TAs, E, EAs> DigestAs<Result<T, E>> for Result<TAs, EAs>
 where
-    T2: DigestAs<T1>,
-    E2: DigestAs<E1>,
+    TAs: DigestAs<T>,
+    EAs: DigestAs<E>,
 {
-    fn digest_as<B: Buffer>(value: &Result<T1, E1>, encoder: encoding::EncodeValue<B>) {
+    fn digest_as<B: Buffer>(value: &Result<T, E>, encoder: encoding::EncodeValue<B>) {
         value
             .as_ref()
-            .map(As::<&T1, &T2>::new)
-            .map_err(As::<&E1, &E2>::new)
+            .map(As::<&T, &TAs>::new)
+            .map_err(As::<&E, &EAs>::new)
             .unambiguously_encode(encoder)
     }
 }
@@ -190,41 +190,41 @@ where
 }
 
 #[cfg(feature = "alloc")]
-impl<K1, K2, V1, V2> DigestAs<alloc::collections::BTreeMap<K1, V1>>
-    for alloc::collections::BTreeMap<K2, V2>
+impl<K, KAs, V, VAs> DigestAs<alloc::collections::BTreeMap<K, V>>
+    for alloc::collections::BTreeMap<KAs, VAs>
 where
-    K2: DigestAs<K1>,
-    V2: DigestAs<V1>,
+    KAs: DigestAs<K>,
+    VAs: DigestAs<V>,
 {
     fn digest_as<B: Buffer>(
-        value: &alloc::collections::BTreeMap<K1, V1>,
+        value: &alloc::collections::BTreeMap<K, V>,
         encoder: encoding::EncodeValue<B>,
     ) {
         crate::unambiguously_encode_iter(
             encoder,
             value
                 .iter()
-                .map(|(key, value)| (As::<&K1, &K2>::new(key), As::<&V1, &V2>::new(value))),
+                .map(|(key, value)| (As::<&K, &KAs>::new(key), As::<&V, &VAs>::new(value))),
         )
     }
 }
 
 /// Digests `HashMap` by transforming it into `BTreeMap`
 #[cfg(feature = "std")]
-impl<K1, K2, V1, V2> DigestAs<std::collections::HashMap<K1, V1>>
-    for alloc::collections::BTreeMap<K2, V2>
+impl<K, KAs, V, VAs> DigestAs<std::collections::HashMap<K, V>>
+    for alloc::collections::BTreeMap<KAs, VAs>
 where
-    K2: DigestAs<K1>,
-    V2: DigestAs<V1>,
-    K1: core::cmp::Ord,
+    KAs: DigestAs<K>,
+    VAs: DigestAs<V>,
+    K: core::cmp::Ord,
 {
     fn digest_as<B: Buffer>(
-        value: &std::collections::HashMap<K1, V1>,
+        value: &std::collections::HashMap<K, V>,
         encoder: encoding::EncodeValue<B>,
     ) {
         let ordered_map = value
             .iter()
-            .map(|(key, value)| (As::<&K1, &K2>::new(key), As::<&V1, &V2>::new(value)))
+            .map(|(key, value)| (As::<&K, &KAs>::new(key), As::<&V, &VAs>::new(value)))
             .collect::<alloc::collections::BTreeMap<_, _>>();
 
         // ordered map has deterministic order, so we can reproducibly hash it
