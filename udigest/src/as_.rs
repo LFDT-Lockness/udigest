@@ -222,7 +222,7 @@ where
     ) {
         let ordered_map = value
             .iter()
-            .map(|x| As::<&T, &U>::new(x))
+            .map(As::<&T, &U>::new)
             .collect::<alloc::collections::BTreeSet<_>>();
 
         // ordered set has deterministic order, so we can reproducibly hash it
