@@ -202,7 +202,9 @@ pub use encoding::Buffer;
 ///   ```
 ///
 ///   When structure is digested, the hash map is converted into btree map. `_` in `BTreeMap<_, udigest::Bytes>`
-///   says that the key should be kept as it is: `String` string will be digested.
+///   says that the key should be kept as it is: `String` string will be digested. The macro
+///   replaces underscores (also called "infer types") with [`udigest::as_::Same`], which
+///   indicates that the same digestion rules should be used as for the original type.
 ///   `udigest::Bytes` indicates that the value `Vec<u8>` should be digested as bytes, not as
 ///   list of u8 which would be a default behavior.
 ///
