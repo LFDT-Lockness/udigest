@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 #[derive(udigest::Digestable)]
 #[udigest(tag = concat!("udigest.example", ".v1"))]
 pub struct DigestableExample {
@@ -101,4 +103,12 @@ pub struct StructWithRefs<'a> {
     field3: &'a String,
     #[udigest(with = encoding::encode_bar)]
     field4: &'a Bar,
+}
+
+#[derive(udigest::Digestable)]
+pub struct OptionalBytes {
+    #[udigest(as = Option<udigest::Bytes>)]
+    field1: Option<Vec<u8>>,
+    #[udigest(as = std::collections::BTreeMap<_, udigest::Bytes>)]
+    hash_map: std::collections::HashMap<String, Vec<u8>>,
 }

@@ -75,7 +75,7 @@ fn process_enum(
                 },
                 fields: (0..)
                     .zip(v.fields.iter())
-                    .map(|(i, f)| process_field(i, f))
+                    .map(|(i, f)| process_field(&attrs.get_root_path(), i, f))
                     .collect::<Result<Vec<_>>>()?,
             })
         })
@@ -92,13 +92,34 @@ fn process_struct(
 ) -> Result<proc_macro2::TokenStream> {
     let struct_fields = (0..)
         .zip(s.fields.iter())
-        .map(|(i, f)| process_field(i, f))
+        .map(|(i, f)| process_field(&container_attrs.get_root_path(), i, f))
         .collect::<Result<Vec<_>>>()?;
 
     generate_impl_for_struct(container_attrs, name, generics, &struct_fields)
 }
 
-fn process_field(index: u32, field: &syn::Field) -> Result<Field> {
+fn process_field(root_path: &attrs::RootPath, index: u32, field: &syn::Field) -> Result<Field> {
+    // same_ty = <root_path>::as_::Same
+    let same_ty = {
+        let mut root = root_path.clone();
+        root.extend([
+            syn::Ident::new("as_", root_path.span()),
+            syn::Ident::new("Same", root_path.span()),
+        ]);
+        syn::Type::Path(syn::TypePath {
+            qself: None,
+            path: syn::Path {
+                leading_colon: None,
+                segments: root
+                    .into_iter()
+                    .map(|ident| syn::PathSegment {
+                        ident,
+                        arguments: syn::PathArguments::None,
+                    })
+                    .collect(),
+            },
+        })
+    };
     let mut field_attrs = FieldAttrs::default();
 
     let mem = field
@@ -118,50 +139,210 @@ fn process_field(index: u32, field: &syn::Field) -> Result<Field> {
             continue;
         };
         match attr {
-            attrs::Attr::AsBytes(_) if field_attrs.with.is_some() => {
-                return Err(Error::new(
-                    attr.kw_span(),
-                    "attributes `with` and `as_bytes` cannot be used together",
-                ));
-            }
-            attrs::Attr::With(_) if field_attrs.as_bytes.is_some() => {
-                return Err(Error::new(
-                    attr.kw_span(),
-                    "attributes `with` and `as_bytes` cannot be used together",
-                ));
-            }
             attrs::Attr::AsBytes(_) if field_attrs.as_bytes.is_some() => {
                 return Err(Error::new(attr.kw_span(), "attribute is duplicated"))
-            }
-            attrs::Attr::AsBytes(attr) => {
-                field_attrs.as_bytes = Some(attr);
             }
             attrs::Attr::With(_) if field_attrs.with.is_some() => {
                 return Err(Error::new(attr.kw_span(), "attribute is duplicated"))
             }
-            attrs::Attr::With(attr) => {
-                field_attrs.with = Some(attr);
-            }
             attrs::Attr::Skip(_) if field_attrs.skip.is_some() => {
                 return Err(Error::new(attr.kw_span(), "attribute is duplicated"));
-            }
-            attrs::Attr::Skip(attr) => {
-                field_attrs.skip = Some(attr);
             }
             attrs::Attr::Rename(_) if field_attrs.rename.is_some() => {
                 return Err(Error::new(attr.kw_span(), "attribute is duplicated"))
             }
+            attrs::Attr::As(_) if field_attrs.as_.is_some() => {
+                return Err(Error::new(attr.kw_span(), "attribute is duplicated"))
+            }
+            attrs::Attr::AsBytes(_)
+            | attrs::Attr::With(_)
+            | attrs::Attr::As(_)
+            | attrs::Attr::Skip(_)
+                if count_trues([
+                    field_attrs.as_bytes.is_some(),
+                    field_attrs.with.is_some(),
+                    field_attrs.as_.is_some(),
+                    field_attrs.skip.is_some(),
+                ]) > 0 =>
+            {
+                return Err(Error::new(
+                    attr.kw_span(),
+                    "attributes `with`, `as_bytes`, `as` and 'skip` cannot be used together",
+                ));
+            }
+            attrs::Attr::AsBytes(attr) => {
+                field_attrs.as_bytes = Some(attr);
+            }
+            attrs::Attr::With(attr) => {
+                field_attrs.with = Some(attr);
+            }
+            attrs::Attr::Skip(attr) => {
+                field_attrs.skip = Some(attr);
+            }
             attrs::Attr::Rename(attr) => {
                 field_attrs.rename = Some(attr);
+            }
+            attrs::Attr::As(mut attr) => {
+                attr.value = type_replace_infer(attr.value, same_ty.clone())?;
+                field_attrs.as_ = Some(attr);
             }
             _ => return Err(Error::new(attr.kw_span(), "attribute is not allowed here")),
         }
     }
 
     Ok(Field {
+        span: field.ty.span(),
         attrs: field_attrs,
         mem,
+        ty: field.ty.clone(),
     })
+}
+
+fn count_trues(i: impl IntoIterator<Item = bool>) -> usize {
+    i.into_iter().filter(|x| *x).count()
+}
+
+/// Traverses the type and replaces `_` with `infer_ty`
+///
+/// E.g. `Option<_>` becomes `Option<{infer_ty}>`.
+///
+/// Returns an error if provided type is not supported. It supports any types that
+/// can be found as the type of field in the struct. For instance, `impl Trait` is
+/// not supported.
+///
+/// The function only traverses some types such as: path type (e.g. `std::result::Result<T, E>`),
+/// arrays, slices, tuples, references, pointers. It does not traverse anything else,
+/// like function pointers or trait objects. E.g. `fn(_) -> u32` or `Box<dyn _>` are
+/// not modified by the function.
+fn type_replace_infer(ty: syn::Type, infer_ty: syn::Type) -> Result<syn::Type> {
+    match ty {
+        syn::Type::Infer(_) => Ok(infer_ty),
+
+        syn::Type::Array(ty) => Ok(syn::Type::Array(syn::TypeArray {
+            bracket_token: ty.bracket_token,
+            elem: Box::new(type_replace_infer(*ty.elem, infer_ty)?),
+            semi_token: ty.semi_token,
+            len: ty.len,
+        })),
+        syn::Type::Group(ty) => Ok(syn::Type::Group(syn::TypeGroup {
+            group_token: ty.group_token,
+            elem: Box::new(type_replace_infer(*ty.elem, infer_ty)?),
+        })),
+        syn::Type::Paren(ty) => Ok(syn::Type::Paren(syn::TypeParen {
+            paren_token: ty.paren_token,
+            elem: Box::new(type_replace_infer(*ty.elem, infer_ty)?),
+        })),
+        syn::Type::Path(ty) => Ok(syn::Type::Path(syn::TypePath {
+            qself: ty.qself,
+            path: syn::Path {
+                leading_colon: ty.path.leading_colon,
+                // Traverse each segment of the path, e.g.:
+                //
+                // std::result::Result<T, E>
+                // 1 --| 2 ----| 3 --------|
+                segments: ty
+                    .path
+                    .segments
+                    .into_pairs()
+                    .map(|pair| {
+                        let (seg, sep) = pair.into_tuple();
+                        let args = match seg.arguments {
+                            syn::PathArguments::None => syn::PathArguments::None,
+                            syn::PathArguments::Parenthesized(x) => {
+                                return Err(Error::new(x.span(), "not allowed in this context"))
+                            }
+                            // Result<T, E>
+                            //       ^----^ angle-bracketed arguments
+                            syn::PathArguments::AngleBracketed(args) => {
+                                syn::PathArguments::AngleBracketed(
+                                    syn::AngleBracketedGenericArguments {
+                                        colon2_token: args.colon2_token,
+                                        lt_token: args.lt_token,
+                                        // traverse each path argument
+                                        args: args
+                                            .args
+                                            .into_pairs()
+                                            .map(|pair| {
+                                                let (arg, comma) = pair.into_tuple();
+                                                let arg = match arg {
+                                                    // type argument => need to traverse
+                                                    syn::GenericArgument::Type(ty) => {
+                                                        syn::GenericArgument::Type(
+                                                            type_replace_infer(
+                                                                ty,
+                                                                infer_ty.clone(),
+                                                            )?,
+                                                        )
+                                                    }
+                                                    // other arguments we do not care about, like lifetimes
+                                                    _ => arg,
+                                                };
+                                                Ok(syn::punctuated::Pair::new(arg, comma))
+                                            })
+                                            .collect::<Result<_>>()?,
+                                        gt_token: args.gt_token,
+                                    },
+                                )
+                            }
+                        };
+
+                        Ok(syn::punctuated::Pair::new(
+                            syn::PathSegment {
+                                ident: seg.ident,
+                                arguments: args,
+                            },
+                            sep,
+                        ))
+                    })
+                    .collect::<Result<_>>()?,
+            },
+        })),
+        syn::Type::Ptr(ty) => Ok(syn::Type::Ptr(syn::TypePtr {
+            star_token: ty.star_token,
+            const_token: ty.const_token,
+            mutability: ty.mutability,
+            elem: Box::new(type_replace_infer(*ty.elem, infer_ty)?),
+        })),
+        syn::Type::Reference(ty) => Ok(syn::Type::Reference(syn::TypeReference {
+            and_token: ty.and_token,
+            lifetime: ty.lifetime,
+            mutability: ty.mutability,
+            elem: Box::new(type_replace_infer(*ty.elem, infer_ty)?),
+        })),
+        syn::Type::Slice(ty) => Ok(syn::Type::Slice(syn::TypeSlice {
+            bracket_token: ty.bracket_token,
+            elem: Box::new(type_replace_infer(*ty.elem, infer_ty)?),
+        })),
+        syn::Type::Tuple(ty) => Ok(syn::Type::Tuple(syn::TypeTuple {
+            paren_token: ty.paren_token,
+            // Traverse each type in the tuple
+            elems: ty
+                .elems
+                .into_pairs()
+                .map(|pair| {
+                    let (ty, comma) = pair.into_tuple();
+                    let ty = type_replace_infer(ty, infer_ty.clone())?;
+                    Ok(syn::punctuated::Pair::new(ty, comma))
+                })
+                .collect::<Result<_>>()?,
+        })),
+
+        // Following types are not traversed
+        syn::Type::BareFn(_)
+        | syn::Type::Macro(_)
+        | syn::Type::Never(_)
+        | syn::Type::TraitObject(_)
+        | syn::Type::Verbatim(_) => Ok(ty),
+
+        // Following types are not supported
+        syn::Type::ImplTrait(_) => Err(Error::new(
+            ty.span(),
+            "`impl Trait` is not supported in this context",
+        )),
+
+        // This might happen if Rust gets a new type in the future
+        _ => Err(Error::new(ty.span(), "unknown type")),
+    }
 }
 
 fn generate_impl_for_enum(
@@ -215,8 +396,9 @@ fn generate_impl_for_enum(
                     &root_path,
                     &encoder_var,
                     &f.attrs,
-                    f.mem.span(),
+                    f.span,
                     &f.stringify_field_name(),
+                    &f.ty,
                     &binding,
                 )
             });
@@ -280,9 +462,10 @@ fn generate_impl_for_struct(
             &root_path,
             &encoder_var,
             &f.attrs,
-            f.mem.span(),
+            f.span,
             &f.stringify_field_name(),
-            &quote_spanned! {f.mem.span() => &self.#mem},
+            &f.ty,
+            &quote_spanned! {f.ty.span() => &self.#mem},
         )
     });
 
@@ -338,14 +521,14 @@ fn make_where_clause(
 
     let generated_predicates = match &attrs.bound {
         Some(bound) => {
-            let overriden_where_clause: proc_macro2::TokenStream = bound
+            let overridden_where_clause: proc_macro2::TokenStream = bound
                 .value
                 .value()
                 .parse()
                 .map_err(|err| Error::new(bound.value.span(), err))?;
             let predicates = syn::parse::Parser::parse2(
                 syn::punctuated::Punctuated::<syn::WherePredicate, syn::Token![,]>::parse_terminated,
-                overriden_where_clause
+                overridden_where_clause
             )
             .map_err(|err| Error::new(bound.value.span(), err))?;
             let predicates = predicates.iter();
@@ -379,6 +562,7 @@ fn encode_field(
     field_attrs: &FieldAttrs,
     field_span: proc_macro2::Span,
     field_name: &str,
+    field_type: &syn::Type,
     field_ref: &impl quote::ToTokens,
 ) -> proc_macro2::TokenStream {
     if field_attrs.skip.is_some() {
@@ -390,11 +574,8 @@ fn encode_field(
         Some(attrs::Rename { rename, value, .. }) => quote_spanned! { rename.span => #value },
     };
 
-    match (&field_attrs.as_bytes, &field_attrs.with) {
-        (Some(_), Some(_)) => {
-            unreachable!("it should have been validated that `with` and `as_bytes` are not used in the same time")
-        }
-        (Some(attr), None) => match &attr.value {
+    match (&field_attrs.as_bytes, &field_attrs.with, &field_attrs.as_) {
+        (Some(attr), None, None) => match &attr.value {
             Some(func) => quote_spanned! {field_span => {
                 let field_encoder = #encoder_var.add_field(#field_name);
                 let field_bytes = #func(#field_ref);
@@ -407,15 +588,23 @@ fn encode_field(
                 field_encoder.encode_leaf_value(field_bytes);
             }),
         },
-        (None, Some(attrs::With { value: func, .. })) => quote_spanned! {field_span => {
+        (None, Some(attrs::With { value: func, .. }), None) => quote_spanned! {field_span => {
             let field_encoder = #encoder_var.add_field(#field_name);
             #[allow(clippy::needless_borrow, clippy::needless_borrows_for_generic_args)]
             #func(#field_ref, field_encoder);
         }},
-        (None, None) => quote_spanned! {field_span => {
+        (None, None, Some(attrs::As { value: ty, .. })) => quote_spanned! {field_span => {
+            let field_encoder = #encoder_var.add_field(#field_name);
+            #[allow(clippy::needless_borrow, clippy::needless_borrows_for_generic_args)]
+            <#ty as #root_path::DigestAs<#field_type>>::digest_as(#field_ref, field_encoder)
+        }},
+        (None, None, None) => quote_spanned! {field_span => {
             let field_encoder = #encoder_var.add_field(#field_name);
             #root_path::Digestable::unambiguously_encode(#field_ref, field_encoder);
         }},
+        _ => {
+            unreachable!("it should have been validated that `with`, `as_bytes`, `as` are not used in the same time")
+        }
     }
 }
 
@@ -445,11 +634,14 @@ struct FieldAttrs {
     skip: Option<attrs::Skip>,
     rename: Option<attrs::Rename>,
     with: Option<attrs::With>,
+    as_: Option<attrs::As>,
 }
 
 struct Field {
+    span: proc_macro2::Span,
     attrs: FieldAttrs,
     mem: syn::Member,
+    ty: syn::Type,
 }
 
 impl Field {

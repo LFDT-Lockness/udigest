@@ -1,14 +1,8 @@
 use udigest::encoding::*;
 
-/// A buffer based on `Vec<u8>`. Writing to the buffer
-/// appends data to the vector
-pub struct VecBuf(Vec<u8>);
+use common::VecBuf;
 
-impl udigest::encoding::Buffer for VecBuf {
-    fn write(&mut self, bytes: &[u8]) {
-        self.0.extend_from_slice(bytes)
-    }
-}
+mod common;
 
 macro_rules! concat_bytes_into_vec {
     ($($bytes:expr),*$(,)?) => {{

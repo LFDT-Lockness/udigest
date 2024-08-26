@@ -1,6 +1,6 @@
 [package]
 name = "udigest"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Unambiguously digest structured data"
@@ -18,7 +18,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 digest = { version = "0.10", default-features = false, optional = true }
 
-udigest-derive = { version = "0.2", path = "../udigest-derive", optional = true }
+udigest-derive = { version = "0.3", path = "../udigest-derive", optional = true }
 
 [dev-dependencies]
 hex = "0.4"
@@ -49,6 +49,11 @@ required-features = ["derive", "digest"]
 name = "inline_struct"
 required-features = ["derive", "inline-struct"]
 
+[[test]]
+name = "digest_as"
+required-features = ["derive", "inline-struct"]
+
 [[example]]
 name = "derivation"
 required-features = ["std", "derive", "digest"]
+

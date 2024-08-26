@@ -7,6 +7,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
   CARGO_NET_GIT_FETCH_WITH_CLI: true
+  RUSTFLAGS: -D warnings
 
 jobs:
   check-and-test:
@@ -20,9 +21,9 @@ jobs:
       with:
         cache-on-failure: "true"
     - name: Check
-      run: cargo check -p udigest --features "${{ matrix.features }}"
+      run: cargo check -p udigest --no-default-features --features "${{ matrix.features }}"
     - name: Run tests
-      run: cargo test -p udigest --lib --tests --features "${{ matrix.features }}"
+      run: cargo test -p udigest --lib --tests --no-default-features --features "${{ matrix.features }}"
   test-all-features:
     runs-on: ubuntu-latest
     steps:

@@ -18,6 +18,7 @@ pub enum Attr {
     Skip(Skip),
     Rename(Rename),
     With(With),
+    As(As),
 }
 
 impl Attr {
@@ -30,6 +31,7 @@ impl Attr {
             Attr::Skip(attr) => attr.skip.span,
             Attr::Rename(attr) => attr.rename.span,
             Attr::With(attr) => attr.with.span,
+            Attr::As(attr) => attr.as_.span,
         }
     }
 }
@@ -51,6 +53,8 @@ impl syn::parse::Parse for Attr {
             Rename::parse(input).map(Attr::Rename)
         } else if lookahead.peek(kw::with) {
             With::parse(input).map(Attr::With)
+        } else if lookahead.peek(syn::Token![as]) {
+            As::parse(input).map(Attr::As)
         } else {
             Err(lookahead.error())
         }
@@ -59,7 +63,7 @@ impl syn::parse::Parse for Attr {
 
 pub struct Root {
     pub root: kw::root,
-    pub eq: syn::Token![=],
+    pub _eq: syn::Token![=],
     pub path: RootPath,
 }
 
@@ -68,50 +72,50 @@ pub type RootPath = syn::punctuated::Punctuated<syn::Ident, syn::Token![::]>;
 impl syn::parse::Parse for Root {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let root = input.parse::<kw::root>()?;
-        let eq = input.parse::<syn::Token![=]>()?;
+        let _eq = input.parse::<syn::Token![=]>()?;
         let path = RootPath::parse_separated_nonempty_with(input, syn::Ident::parse_any)?;
 
-        Ok(Self { root, eq, path })
+        Ok(Self { root, _eq, path })
     }
 }
 
 pub struct Tag {
     pub tag: kw::tag,
-    pub eq: syn::Token![=],
+    pub _eq: syn::Token![=],
     pub value: syn::Expr,
 }
 
 impl syn::parse::Parse for Tag {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let tag = input.parse()?;
-        let eq = input.parse()?;
+        let _eq = input.parse()?;
         let value = input.parse()?;
 
-        Ok(Self { tag, eq, value })
+        Ok(Self { tag, _eq, value })
     }
 }
 
 pub struct AsBytes {
     pub as_bytes: kw::as_bytes,
-    pub eq: Option<syn::Token![=]>,
+    pub _eq: Option<syn::Token![=]>,
     pub value: Option<syn::Expr>,
 }
 
 impl syn::parse::Parse for AsBytes {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let as_bytes = input.parse()?;
-        let mut eq = None;
+        let mut _eq = None;
         let mut value = None;
 
         let lookahead = input.lookahead1();
         if lookahead.peek(syn::Token![=]) {
-            eq = Some(input.parse()?);
+            _eq = Some(input.parse()?);
             value = Some(input.parse()?);
         }
 
         Ok(Self {
             as_bytes,
-            eq,
+            _eq,
             value,
         })
     }
@@ -119,17 +123,17 @@ impl syn::parse::Parse for AsBytes {
 
 pub struct Bound {
     pub bound: kw::bound,
-    pub eq: syn::Token![=],
+    pub _eq: syn::Token![=],
     pub value: syn::LitStr,
 }
 
 impl syn::parse::Parse for Bound {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let bound = input.parse()?;
-        let eq = input.parse()?;
+        let _eq = input.parse()?;
         let value = input.parse()?;
 
-        Ok(Self { bound, eq, value })
+        Ok(Self { bound, _eq, value })
     }
 }
 
@@ -146,31 +150,46 @@ impl syn::parse::Parse for Skip {
 
 pub struct Rename {
     pub rename: kw::rename,
-    pub eq: syn::Token![=],
+    pub _eq: syn::Token![=],
     pub value: syn::Expr,
 }
 
 impl syn::parse::Parse for Rename {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let rename = input.parse()?;
-        let eq = input.parse()?;
+        let _eq = input.parse()?;
         let value = input.parse()?;
 
-        Ok(Self { rename, eq, value })
+        Ok(Self { rename, _eq, value })
     }
 }
 
 pub struct With {
     pub with: kw::with,
-    pub eq: syn::Token![=],
+    pub _eq: syn::Token![=],
     pub value: syn::Expr,
 }
 
 impl syn::parse::Parse for With {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let with = input.parse()?;
-        let eq = input.parse()?;
+        let _eq = input.parse()?;
         let value = input.parse()?;
-        Ok(Self { with, eq, value })
+        Ok(Self { with, _eq, value })
+    }
+}
+
+pub struct As {
+    pub as_: syn::Token![as],
+    pub _eq: syn::Token![=],
+    pub value: syn::Type,
+}
+
+impl syn::parse::Parse for As {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let as_ = input.parse()?;
+        let _eq = input.parse()?;
+        let value = input.parse()?;
+        Ok(Self { as_, _eq, value })
     }
 }

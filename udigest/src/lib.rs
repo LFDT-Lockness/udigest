@@ -56,6 +56,8 @@
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std;
 
 pub use encoding::Buffer;
 
@@ -183,6 +185,49 @@ pub use encoding::Buffer;
 ///       todo!()
 ///   }
 ///   ```
+/// * `#[udigest(as = ...)]` \
+///   Tells to encode the field as another type `U`. Proc macro will use
+///   [`<U as DigestAs<FieldType>>::digest_as`](DigestAs) to encode this field.
+///
+///   It is similar to `#[udigest(with = ...)]` attribute described above which allows to specify
+///   a function which will be used to encode a field value. `#[udigest(as = ...)]` is designed for
+///   more complex use-cases. For instance, it can be used to digest a hash map:
+///
+///   ```rust
+///   #[derive(udigest::Digestable)]
+///   pub struct Attributes(
+///       #[udigest(as = std::collections::BTreeMap<_, udigest::Bytes>)]
+///       std::collections::HashMap<String, Vec<u8>>,
+///   );
+///   ```
+///
+///   When structure is digested, the hash map is converted into btree map. `_` in `BTreeMap<_, udigest::Bytes>`
+///   says that the key should be kept as it is: `String` string will be digested. The macro
+///   replaces underscores (also called "infer types") with [`Same`](crate::as_::Same), which
+///   indicates that the same digestion rules should be used as for the original type.
+///   `udigest::Bytes` indicates that the value `Vec<u8>` should be digested as bytes, not as
+///   list of u8 which would be a default behavior.
+///
+///   Similarly, if we have a field of type `Option<Vec<u8>>` and we want it to be encoded as
+///   bytes, we cannot use `#[udigest(as_bytes)]` as the field does not implement `AsRef<[u8]>`:
+///
+///   ```compile_fail
+///   #[derive(udigest::Digestable)]
+///   pub struct Data(
+///       #[udigest(as_bytes)]
+///       Option<Vec<u8>>,
+///   );
+///   ```
+///
+///   We can use `as` attribute instead:
+///   ```rust
+///   #[derive(udigest::Digestable)]
+///   pub struct Data(
+///       #[udigest(as = Option<udigest::Bytes>)]
+///       Option<Vec<u8>>,
+///   );
+///   ```
+///
 /// * `#[udigest(rename = "...")]` \
 ///   Specifies another name to use for the field. As field name gets mixed into the hash,
 ///   changing the field name will change the hash. Sometimes, it may be required to change
@@ -203,6 +248,9 @@ pub use udigest_derive::Digestable;
 pub mod encoding;
 #[cfg(feature = "inline-struct")]
 pub mod inline_struct;
+
+pub mod as_;
+pub use as_::DigestAs;
 
 /// Digests a structured `value` using fixed-output hash function (like sha2-256)
 #[cfg(feature = "digest")]
@@ -303,11 +351,11 @@ impl<T: Digestable + ?Sized> Digestable for &T {
 /// Wrapper for a bytestring
 ///
 /// Wraps any bytestring that `impl AsRef<[u8]>` and provides [`Digestable`] trait implementation
-pub struct Bytes<T: ?Sized>(pub T);
+pub struct Bytes<T: ?Sized = [u8; 0]>(pub T);
 
 impl<T: AsRef<[u8]> + ?Sized> Digestable for Bytes<T> {
     fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
-        self.0.as_ref().unambiguously_encode(encoder)
+        encoder.encode_leaf_value(self.0.as_ref())
     }
 }
 
@@ -434,10 +482,10 @@ impl<T: Digestable, E: Digestable> Digestable for Result<T, E> {
 
 macro_rules! digestable_tuple {
     ($($letter:ident),+) => {
-        impl<$($letter: Digestable),+> Digestable for ($($letter),+) {
+        impl<$($letter: Digestable),+> Digestable for ($($letter,)+) {
             fn unambiguously_encode<BUF: Buffer>(&self, encoder: encoding::EncodeValue<BUF>) {
                 #[allow(non_snake_case)]
-                let ($($letter),+) = self;
+                let ($($letter,)+) = self;
                 let mut list = encoder.encode_list();
                 $(
                     let item_encoder = list.add_item();
@@ -448,16 +496,23 @@ macro_rules! digestable_tuple {
     };
 }
 
-macro_rules! digestable_tuples {
-    ($letter:ident) => {};
-    ($letter:ident, $($others:ident),+) => {
-        digestable_tuple!($letter, $($others),+);
-        digestable_tuples!($($others),+);
-    }
-}
-
 // We support tuples with up to 16 elements
-digestable_tuples!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P);
+digestable_tuple!(A);
+digestable_tuple!(A, B);
+digestable_tuple!(A, B, C);
+digestable_tuple!(A, B, C, D);
+digestable_tuple!(A, B, C, D, E);
+digestable_tuple!(A, B, C, D, E, F);
+digestable_tuple!(A, B, C, D, E, F, G);
+digestable_tuple!(A, B, C, D, E, F, G, H);
+digestable_tuple!(A, B, C, D, E, F, G, H, I);
+digestable_tuple!(A, B, C, D, E, F, G, H, I, J);
+digestable_tuple!(A, B, C, D, E, F, G, H, I, J, K);
+digestable_tuple!(A, B, C, D, E, F, G, H, I, J, K, L);
+digestable_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M);
+digestable_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N);
+digestable_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O);
+digestable_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P);
 
 fn unambiguously_encode_iter<B: Buffer, T: Digestable>(
     encoder: encoding::EncodeValue<B>,
