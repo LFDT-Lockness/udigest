@@ -1,7 +1,7 @@
 ## v0.3.0
 * Add `#[udigest(as = ...)]` attribute and `DeriveAs` trait [#12]
 
-[#12]: https://github.com/dfns/udigest/pull/12
+[#12]: https://github.com/LFDT-Lockness/udigest/pull/12
 
 ## v0.2.0
 * Breaking change: remove `udigest::Tag` [#4]
@@ -15,9 +15,9 @@
 * fix: handle cases when `EncodeValue` is dropped without being used [#4]
 * fix: proc macro used to cause clippy warnings in certain cases [#6]
 
-[#4]: https://github.com/dfns/udigest/pull/4
-[#5]: https://github.com/dfns/udigest/pull/5
-[#6]: https://github.com/dfns/udigest/pull/6
+[#4]: https://github.com/LFDT-Lockness/udigest/pull/4
+[#5]: https://github.com/LFDT-Lockness/udigest/pull/5
+[#6]: https://github.com/LFDT-Lockness/udigest/pull/6
 
 ## v0.1.0
 

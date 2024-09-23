@@ -4,7 +4,7 @@ version = "0.3.0"
 edition = "2021"
 description = "Proc macro for `udigest` crate"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/dfns/udigest"
+repository = "https://github.com/LFDT-Lockness/udigest"
 
 [lib]
 proc-macro = true
