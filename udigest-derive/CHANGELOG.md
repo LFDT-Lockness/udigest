@@ -1,3 +1,8 @@
+## v0.3.1
+* Update links in crate settings [#14]
+
+[#14]: https://github.com/LFDT-Lockness/udigest/pull/14
+
 ## v0.3.0
 * Add `#[udigest(as = ...)]` attribute support [#12]
 
