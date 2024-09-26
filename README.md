@@ -1,6 +1,7 @@
 ![License](https://img.shields.io/crates/l/udigest.svg)
 [![Docs](https://docs.rs/udigest/badge.svg)](https://docs.rs/udigest)
 [![Crates io](https://img.shields.io/crates/v/udigest.svg)](https://crates.io/crates/udigest)
+[![Discord](https://img.shields.io/discord/905194001349627914?logo=discord&logoColor=ffffff&label=Discord)](https://discordapp.com/channels/905194001349627914/1285268686147424388)
 
 ## Unambiguously digest structured data
 
@@ -47,3 +48,6 @@ a better usage experience in Rust. The details of encoding format can be found i
 * `std` implements `Digestable` trait for types in standard library
 * `alloc` implements `Digestable` trait for type in `alloc` crate
 * `derive` enables `Digestable` proc macro
+
+### Join us in Discord!
+Feel free to reach out to us [in Discord](https://discordapp.com/channels/905194001349627914/1285268686147424388)!

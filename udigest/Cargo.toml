@@ -1,10 +1,10 @@
 [package]
 name = "udigest"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 description = "Unambiguously digest structured data"
-repository = "https://github.com/dfns/udigest"
+repository = "https://github.com/LFDT-Lockness/udigest"
 categories = ["algorithms", "cryptography", "no-std", "no-std::no-alloc"]
 keywords = ["hashing", "unambiguous-encoding"]
 readme = "../README.md"
