@@ -22,7 +22,8 @@ pub trait DigestAs<T: ?Sized> {
 
 impl<T, U> DigestAs<&T> for &U
 where
-    U: DigestAs<T>,
+    T: ?Sized,
+    U: DigestAs<T> + ?Sized,
 {
     fn digest_as<B: Buffer>(value: &&T, encoder: encoding::EncodeValue<B>) {
         U::digest_as(*value, encoder)
@@ -81,7 +82,7 @@ pub struct Same;
 
 impl<T> DigestAs<T> for Same
 where
-    T: Digestable,
+    T: Digestable + ?Sized,
 {
     fn digest_as<B: Buffer>(value: &T, encoder: encoding::EncodeValue<B>) {
         value.unambiguously_encode(encoder)
@@ -256,7 +257,8 @@ where
 #[cfg(feature = "alloc")]
 impl<T, U> DigestAs<alloc::boxed::Box<T>> for alloc::boxed::Box<U>
 where
-    U: DigestAs<T>,
+    U: DigestAs<T> + ?Sized,
+    T: ?Sized,
 {
     fn digest_as<B: Buffer>(value: &alloc::boxed::Box<T>, encoder: encoding::EncodeValue<B>) {
         U::digest_as(value, encoder)
@@ -266,7 +268,8 @@ where
 #[cfg(feature = "alloc")]
 impl<T, U> DigestAs<alloc::rc::Rc<T>> for alloc::rc::Rc<U>
 where
-    U: DigestAs<T>,
+    U: DigestAs<T> + ?Sized,
+    T: ?Sized,
 {
     fn digest_as<B: Buffer>(value: &alloc::rc::Rc<T>, encoder: encoding::EncodeValue<B>) {
         U::digest_as(value, encoder)
@@ -276,7 +279,8 @@ where
 #[cfg(feature = "alloc")]
 impl<T, U> DigestAs<alloc::sync::Arc<T>> for alloc::sync::Arc<U>
 where
-    U: DigestAs<T>,
+    U: DigestAs<T> + ?Sized,
+    T: ?Sized,
 {
     fn digest_as<B: Buffer>(value: &alloc::sync::Arc<T>, encoder: encoding::EncodeValue<B>) {
         U::digest_as(value, encoder)
@@ -286,7 +290,7 @@ where
 #[cfg(feature = "alloc")]
 impl<'a, T, U> DigestAs<alloc::borrow::Cow<'a, T>> for alloc::borrow::Cow<'a, U>
 where
-    U: DigestAs<T> + alloc::borrow::ToOwned,
+    U: DigestAs<T> + alloc::borrow::ToOwned + ?Sized,
     T: alloc::borrow::ToOwned + ?Sized + 'a,
 {
     fn digest_as<B: Buffer>(value: &alloc::borrow::Cow<'a, T>, encoder: encoding::EncodeValue<B>) {
@@ -297,7 +301,7 @@ where
 #[cfg(feature = "alloc")]
 impl<'a, T, U> DigestAs<alloc::borrow::Cow<'a, T>> for &'a U
 where
-    U: DigestAs<T>,
+    U: DigestAs<T> + ?Sized,
     T: alloc::borrow::ToOwned + ?Sized + 'a,
 {
     fn digest_as<B: Buffer>(value: &alloc::borrow::Cow<'a, T>, encoder: encoding::EncodeValue<B>) {
