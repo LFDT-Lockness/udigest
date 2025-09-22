@@ -5,7 +5,7 @@
 //! documentation.
 
 use quote::{quote, quote_spanned};
-use syn::{spanned::Spanned, Error, Result};
+use syn::{Error, Result, spanned::Spanned};
 
 mod attrs;
 
@@ -28,13 +28,13 @@ fn digestable_inner(input: syn::DeriveInput) -> Result<proc_macro2::TokenStream>
         };
         match attr {
             attrs::Attr::Root(_) if container_attrs.root.is_some() => {
-                return Err(Error::new(attr.kw_span(), "attribute is duplicated"))
+                return Err(Error::new(attr.kw_span(), "attribute is duplicated"));
             }
             attrs::Attr::Root(attr) => {
                 container_attrs.root = Some(attr);
             }
             attrs::Attr::Tag(_) if container_attrs.tag.is_some() => {
-                return Err(Error::new(attr.kw_span(), "attribute is duplicated"))
+                return Err(Error::new(attr.kw_span(), "attribute is duplicated"));
             }
             attrs::Attr::Tag(attr) => {
                 container_attrs.tag = Some(attr);
@@ -140,19 +140,19 @@ fn process_field(root_path: &attrs::RootPath, index: u32, field: &syn::Field) ->
         };
         match attr {
             attrs::Attr::AsBytes(_) if field_attrs.as_bytes.is_some() => {
-                return Err(Error::new(attr.kw_span(), "attribute is duplicated"))
+                return Err(Error::new(attr.kw_span(), "attribute is duplicated"));
             }
             attrs::Attr::With(_) if field_attrs.with.is_some() => {
-                return Err(Error::new(attr.kw_span(), "attribute is duplicated"))
+                return Err(Error::new(attr.kw_span(), "attribute is duplicated"));
             }
             attrs::Attr::Skip(_) if field_attrs.skip.is_some() => {
                 return Err(Error::new(attr.kw_span(), "attribute is duplicated"));
             }
             attrs::Attr::Rename(_) if field_attrs.rename.is_some() => {
-                return Err(Error::new(attr.kw_span(), "attribute is duplicated"))
+                return Err(Error::new(attr.kw_span(), "attribute is duplicated"));
             }
             attrs::Attr::As(_) if field_attrs.as_.is_some() => {
-                return Err(Error::new(attr.kw_span(), "attribute is duplicated"))
+                return Err(Error::new(attr.kw_span(), "attribute is duplicated"));
             }
             attrs::Attr::AsBytes(_)
             | attrs::Attr::With(_)
@@ -249,7 +249,7 @@ fn type_replace_infer(ty: syn::Type, infer_ty: syn::Type) -> Result<syn::Type> {
                         let args = match seg.arguments {
                             syn::PathArguments::None => syn::PathArguments::None,
                             syn::PathArguments::Parenthesized(x) => {
-                                return Err(Error::new(x.span(), "not allowed in this context"))
+                                return Err(Error::new(x.span(), "not allowed in this context"));
                             }
                             // Result<T, E>
                             //       ^----^ angle-bracketed arguments
@@ -491,7 +491,7 @@ fn parse_attribute(attr: &syn::Attribute) -> Result<Option<attrs::Attr>> {
             return Err(Error::new(
                 path.span(),
                 "empty attribute doesn't make sense",
-            ))
+            ));
         }
         syn::Meta::NameValue(meta) if meta.path.is_ident("udigest") => {
             return Err(Error::new(
@@ -603,7 +603,9 @@ fn encode_field(
             #root_path::Digestable::unambiguously_encode(#field_ref, field_encoder);
         }},
         _ => {
-            unreachable!("it should have been validated that `with`, `as_bytes`, `as` are not used in the same time")
+            unreachable!(
+                "it should have been validated that `with`, `as_bytes`, `as` are not used in the same time"
+            )
         }
     }
 }

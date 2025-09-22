@@ -12,7 +12,7 @@
 //!
 //! See more examples in [macro@Digestable] macro docs.
 
-use crate::{encoding, Buffer, Digestable};
+use crate::{Buffer, Digestable, encoding};
 
 /// Custom rule for digesting an instance of `T`
 pub trait DigestAs<T: ?Sized> {

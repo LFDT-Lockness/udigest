@@ -1,6 +1,10 @@
 [workspace]
-resolver = "2"
+resolver = "3"
+
 members = [
   "udigest",
   "udigest-derive",
 ]
+
+[workspace.package]
+edition = "2024"
