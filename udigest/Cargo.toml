@@ -1,6 +1,6 @@
 [package]
 name = "udigest"
-version = "0.2.2"
+version = "0.2.3"
 edition.workspace = true
 license = "MIT OR Apache-2.0"
 description = "Unambiguously digest structured data"
