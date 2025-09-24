@@ -1,7 +1,7 @@
 [package]
 name = "udigest"
-version = "0.2.2"
-edition = "2021"
+version = "0.2.3"
+edition.workspace = true
 license = "MIT OR Apache-2.0"
 description = "Unambiguously digest structured data"
 repository = "https://github.com/LFDT-Lockness/udigest"

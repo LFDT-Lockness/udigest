@@ -352,7 +352,7 @@ impl<'b, B: Buffer> EncodeStruct<'b, B> {
     /// Adds a fields to the structure
     ///
     /// Returns an encoder that shall be used to encode the fields value
-    pub fn add_field(&mut self, field_name: impl AsRef<[u8]>) -> EncodeValue<B> {
+    pub fn add_field(&mut self, field_name: impl AsRef<[u8]>) -> EncodeValue<'_, B> {
         self.list.add_leaf().chain(field_name);
         self.list.add_item()
     }
@@ -479,7 +479,7 @@ impl<'b, B: Buffer> EncodeList<'b, B> {
     /// ## Panic
     /// Panics if list length overflows `usize`
     #[allow(clippy::expect_used)]
-    pub fn add_item(&mut self) -> EncodeValue<B> {
+    pub fn add_item(&mut self) -> EncodeValue<'_, B> {
         self.len = self.len.checked_add(1).expect("list len overflows usize");
         EncodeValue::new(self.buffer)
     }
@@ -487,14 +487,14 @@ impl<'b, B: Buffer> EncodeList<'b, B> {
     /// Adds a leaf (bytestring) to the list
     ///
     /// Alias to `.add_item().encode_leaf()`
-    pub fn add_leaf(&mut self) -> EncodeLeaf<B> {
+    pub fn add_leaf(&mut self) -> EncodeLeaf<'_, B> {
         self.add_item().encode_leaf()
     }
 
     /// Adds a sublist to the list
     ///
     /// Alias to `.add_item().encode_list()`
-    pub fn add_list(&mut self) -> EncodeList<B> {
+    pub fn add_list(&mut self) -> EncodeList<'_, B> {
         self.add_item().encode_list()
     }
 
