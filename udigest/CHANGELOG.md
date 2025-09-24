@@ -1,7 +1,9 @@
 ## v0.2.3
 * Relax bounds in `DigestAs` implementations: allow `?Sized` types [#18]
+* Implement `Digestable` for `core::convert::Infallible` (a.k.a. Never type) [#19]
 
 [#18]: https://github.com/LFDT-Lockness/udigest/pull/18
+[#19]: https://github.com/LFDT-Lockness/udigest/pull/19
 
 ## v0.2.2
 * Update links in crate settings [#14]
