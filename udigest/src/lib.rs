@@ -352,6 +352,12 @@ impl<T: Digestable + ?Sized> Digestable for &T {
     }
 }
 
+impl Digestable for core::convert::Infallible {
+    fn unambiguously_encode<B: Buffer>(&self, _encoder: encoding::EncodeValue<B>) {
+        match *self {}
+    }
+}
+
 /// Wrapper for a bytestring
 ///
 /// Wraps any bytestring that `impl AsRef<[u8]>` and provides [`Digestable`] trait implementation
