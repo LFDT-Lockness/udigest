@@ -405,8 +405,10 @@ fn generate_impl_for_enum(
         }
     });
 
-    let match_expr = if !enum_variants.is_empty() {
-        let match_branches = enum_variants
+    let variant_assertions =
+        assert_no_duplicates_in_enum_variant_names(&attrs.get_root_path(), enum_variants);
+    let (match_expr, fields_assertions) = if !enum_variants.is_empty() {
+        let (match_branches, assertions) = enum_variants
             .iter()
             .map(|v| {
                 let variant_name = &v.name;
@@ -457,24 +459,38 @@ fn generate_impl_for_enum(
                     let name = variant_name.to_string();
                     quote_spanned!(span => #name)
                 };
-                Ok(quote_spanned! {span =>
+
+                let field_names_duplicates_detection =
+                    assert_no_duplicates_in_enum_variant_field_names(
+                        &attrs.get_root_path(),
+                        &variant_name.to_string(),
+                        &v.fields,
+                    );
+
+                let match_branch = quote_spanned! {span =>
                     #enum_name::#variant_name #pattern => {
                         let mut #encoder_var = #encoder_var.with_variant(#variant_name_encoding);
                         #(#encode_fields)*
                     }
-                })
-            })
-            .collect::<Result<Vec<_>>>()?;
+                };
 
-        quote! {
+                Ok((match_branch, field_names_duplicates_detection))
+            })
+            .collect::<Result<(Vec<_>, Vec<_>)>>()?;
+
+        let match_expr = quote! {
             match self {
                 #(#match_branches)*
             }
-        }
+        };
+        (match_expr, assertions)
     } else {
-        quote! {
-            match *self {}
-        }
+        (
+            quote! {
+                match *self {}
+            },
+            vec![],
+        )
     };
 
     Ok(quote! {
@@ -488,6 +504,10 @@ fn generate_impl_for_enum(
                 #match_expr
             }
         }
+        const _: () = {
+            #variant_assertions
+            #(#fields_assertions)*
+        };
     })
 }
 
@@ -524,6 +544,9 @@ fn generate_impl_for_struct(
         )
     });
 
+    let field_names_duplications_detection =
+        assert_no_duplicates_in_struct_field_names(&attrs.get_root_path(), struct_fields);
+
     Ok(quote! {
         impl #impl_generics #root_path::Digestable for #struct_name #ty_generics #where_clause {
             fn unambiguously_encode<B>(&self, encoder: #root_path::encoding::EncodeValue<B>)
@@ -536,6 +559,9 @@ fn generate_impl_for_struct(
                 #encoder_var.finish();
             }
         }
+        const _: () = {
+            #field_names_duplications_detection
+        };
     })
 }
 
@@ -663,6 +689,153 @@ fn encode_field(
             )
         }
     }
+}
+
+/// Produces a code which statically asserts that there's no duplicates in field name encodings
+///
+/// Takes a `root_path` (path to `udigest` lib), and list of fields
+fn assert_no_duplicates_in_struct_field_names(
+    root_path: &attrs::RootPath,
+    fields: &[Field],
+) -> proc_macro2::TokenStream {
+    assert_no_duplicates_in_field_names(root_path, fields, &|dup_a, dup_b| {
+        format!(
+            "fields `{}` and `{}` have identical name encoding",
+            dup_a, dup_b
+        )
+    })
+}
+
+/// Produces a code which statically asserts that there's no duplicates in field name encodings
+///
+/// Takes a `root_path` (path to `udigest` lib), and list of fields
+fn assert_no_duplicates_in_enum_variant_field_names(
+    root_path: &attrs::RootPath,
+    variant_name: &str,
+    fields: &[Field],
+) -> proc_macro2::TokenStream {
+    assert_no_duplicates_in_field_names(root_path, fields, &|dup_a, dup_b| {
+        format!(
+            "enum variant `{}` has fields `{}` and `{}` that have identical name encoding",
+            variant_name, dup_a, dup_b
+        )
+    })
+}
+
+/// Produces a code which statically asserts that there's no duplicates in field name encodings
+///
+/// Takes a `root_path` (path to `udigest` lib), and list of fields
+fn assert_no_duplicates_in_field_names(
+    root_path: &attrs::RootPath,
+    fields: &[Field],
+    error_msg: &dyn Fn(&str, &str) -> String,
+) -> proc_macro2::TokenStream {
+    if fields.iter().all(|f| f.attrs.rename.is_none()) {
+        // if no field was renamed, the check is not necessary: compiler won't allow
+        // fields with the same names
+        return proc_macro2::TokenStream::new();
+    }
+
+    // extract relevant info about fields
+    let fields = fields
+        .iter()
+        .map(|f| {
+            // span associated with the field
+            let span = f.span;
+            // name of the field as appears in field definition
+            let name = f.stringify_field_name();
+            // name of the field as appears in encoding
+            let encoding = f
+                .attrs
+                .rename
+                .as_ref()
+                .map(|attrs::Rename { value, .. }| quote_spanned!(span => #value))
+                .unwrap_or_else(|| quote_spanned!(span => #name));
+            (span, name, encoding)
+        })
+        .collect::<Vec<_>>();
+
+    assert_no_duplicates(root_path, &fields, error_msg)
+}
+
+fn assert_no_duplicates_in_enum_variant_names(
+    root_path: &attrs::RootPath,
+    enum_variants: &[Variant],
+) -> proc_macro2::TokenStream {
+    if enum_variants.iter().all(|v| v.attrs.rename.is_none()) {
+        // if no variant was renamed, the check is not necessary: compiler won't allow
+        // variants with the same name
+        return proc_macro2::TokenStream::new();
+    }
+
+    let variants = enum_variants
+        .iter()
+        .map(|v| {
+            let span = v.name.span();
+            let name = v.name.to_string();
+            let encoding = v
+                .attrs
+                .rename
+                .as_ref()
+                .map(|attrs::Rename { value, .. }| quote_spanned!(span => #value))
+                .unwrap_or_else(|| quote_spanned!(span => #name));
+            (span, name, encoding)
+        })
+        .collect::<Vec<_>>();
+
+    assert_no_duplicates(root_path, &variants, &|dup_a, dup_b| {
+        format!("variants `{dup_a}` and `{dup_b}` have identical encoding")
+    })
+}
+
+/// Produces a code which statically asserts that there's no duplicates in statically-defined
+/// encodings (of field names, variant names, etc.)
+///
+/// Takes a `root_path` (path to `udigest` lib), set of `[(span, name, encoding)]`, and an error message
+/// formatter, and produces the code that statically asserts that there's no duplicates in this set of
+/// `encoding`.
+///
+/// `span` from the `set` is only used to produce a hint for compiler so it could identify a source of error
+/// more precisely (but compiler seems to ignore it for whatever reason at time of writing).
+///
+/// `name` from the `set` is only used to get an error message, by providing it to `error_msg` lambda.
+fn assert_no_duplicates(
+    root_path: &attrs::RootPath,
+    set: &[(proc_macro2::Span, String, proc_macro2::TokenStream)],
+    error_msg: &dyn Fn(&str, &str) -> String,
+) -> proc_macro2::TokenStream {
+    // for each (unordered) pair from the set, assert that their encoding isn't equal
+    let pairs = set
+        .iter()
+        .enumerate()
+        .flat_map(|(i, (span, a_name, a_name_encoding))| {
+            set[i + 1..]
+                .iter()
+                .map(move |(_, b_name, b_name_encoding)| {
+                    (
+                        *span,
+                        (a_name.clone(), a_name_encoding.clone()),
+                        (b_name, b_name_encoding),
+                    )
+                })
+        });
+    let assertions = pairs.map(
+        |(span, (a_name, a_name_encoding), (b_name, b_name_encoding))| {
+            let error_msg = error_msg(&a_name, b_name);
+            quote_spanned! {span => {
+                #[allow(non_upper_case_globals, dead_code)]
+                const has_unique_encoding: () = {
+                    if #root_path::const_eq!(
+                        #a_name_encoding,
+                        #b_name_encoding,
+                    ) {
+                        panic!(#error_msg);
+                    }
+                };
+            }}
+        },
+    );
+    quote!(#(#assertions)*)
 }
 
 #[derive(Default)]
