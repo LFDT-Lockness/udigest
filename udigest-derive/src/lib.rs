@@ -122,6 +122,17 @@ fn process_field(root_path: &attrs::RootPath, index: u32, field: &syn::Field) ->
     };
     let mut field_attrs = FieldAttrs::default();
 
+    // FIXME: ideally, we want to use `field.span()`, however, that works awfully because
+    // `proc_macro::Span::join` is not stabilized. E.g. if field is `name: Vec<Something>`,
+    // `field.span()` will point to `name: Vec` instead of all field.
+    //
+    // We should change this once `Span::join` is stable.
+    let field_span = field
+        .ident
+        .as_ref()
+        .map(|i| i.span())
+        .unwrap_or_else(|| field.span());
+
     let mem = field
         .ident
         .clone()
@@ -191,7 +202,7 @@ fn process_field(root_path: &attrs::RootPath, index: u32, field: &syn::Field) ->
     }
 
     Ok(Field {
-        span: field.ty.span(),
+        span: field_span,
         attrs: field_attrs,
         mem,
         ty: field.ty.clone(),
@@ -465,7 +476,7 @@ fn generate_impl_for_struct(
             f.span,
             &f.stringify_field_name(),
             &f.ty,
-            &quote_spanned! {f.ty.span() => &self.#mem},
+            &quote_spanned! {f.span => &self.#mem},
         )
     });
 

@@ -5,7 +5,7 @@ error[E0277]: the trait bound `Competence: Digestable` is not satisfied
   |          ------------------- required by a bound introduced by this call
 ...
 6 |     competences: Vec<Competence>,
-  |     ^^^^^^^^^^^^^^^^ the trait `Digestable` is not implemented for `Competence`
+  |     ^^^^^^^^^^^ the trait `Digestable` is not implemented for `Competence`
   |
   = help: the following other types implement trait `Digestable`:
             &T
