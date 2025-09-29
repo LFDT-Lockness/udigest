@@ -1,0 +1,55 @@
+error[E0080]: evaluation panicked: fields `name` and `surname` have identical name encoding
+ --> tests/derive_compile_fails/two_fields_same_name.rs:2:10
+  |
+2 | #[derive(udigest::Digestable)]
+  |          ^^^^^^^^^^^^^^^^^^^ evaluation of `_::_` failed here
+  |
+  = note: this error originates in the macro `$crate::panic::panic_2021` which comes from the expansion of the derive macro `udigest::Digestable` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0080]: evaluation panicked: fields `name` and `surname` have identical name encoding
+  --> tests/derive_compile_fails/two_fields_same_name.rs:10:10
+   |
+10 | #[derive(udigest::Digestable)]
+   |          ^^^^^^^^^^^^^^^^^^^ evaluation of `_::_` failed here
+   |
+   = note: this error originates in the macro `$crate::panic::panic_2021` which comes from the expansion of the derive macro `udigest::Digestable` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0080]: evaluation panicked: fields `first_name` and `last_name` have identical name encoding
+  --> tests/derive_compile_fails/two_fields_same_name.rs:18:10
+   |
+18 | #[derive(udigest::Digestable)]
+   |          ^^^^^^^^^^^^^^^^^^^ evaluation of `_::_` failed here
+   |
+   = note: this error originates in the macro `$crate::panic::panic_2021` which comes from the expansion of the derive macro `udigest::Digestable` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0080]: evaluation panicked: fields `first_name` and `last_name` have identical name encoding
+  --> tests/derive_compile_fails/two_fields_same_name.rs:27:10
+   |
+27 | #[derive(udigest::Digestable)]
+   |          ^^^^^^^^^^^^^^^^^^^ evaluation of `_::_` failed here
+   |
+   = note: this error originates in the macro `$crate::panic::panic_2021` which comes from the expansion of the derive macro `udigest::Digestable` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0080]: evaluation panicked: fields `first_name` and `last_name` have identical name encoding
+  --> tests/derive_compile_fails/two_fields_same_name.rs:34:10
+   |
+34 | #[derive(udigest::Digestable)]
+   |          ^^^^^^^^^^^^^^^^^^^ evaluation of `_::_` failed here
+   |
+   = note: this error originates in the macro `$crate::panic::panic_2021` which comes from the expansion of the derive macro `udigest::Digestable` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0080]: evaluation panicked: fields `first_name` and `last_name` have identical name encoding
+  --> tests/derive_compile_fails/two_fields_same_name.rs:43:10
+   |
+43 | #[derive(udigest::Digestable)]
+   |          ^^^^^^^^^^^^^^^^^^^ evaluation of `_::_` failed here
+   |
+   = note: this error originates in the macro `$crate::panic::panic_2021` which comes from the expansion of the derive macro `udigest::Digestable` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0080]: evaluation panicked: enum variant `Rect` has fields `w` and `h` that have identical name encoding
+  --> tests/derive_compile_fails/two_fields_same_name.rs:52:10
+   |
+52 | #[derive(udigest::Digestable)]
+   |          ^^^^^^^^^^^^^^^^^^^ evaluation of `_::_` failed here
+   |
+   = note: this error originates in the macro `$crate::panic::panic_2021` which comes from the expansion of the derive macro `udigest::Digestable` (in Nightly builds, run with -Z macro-backtrace for more info)
