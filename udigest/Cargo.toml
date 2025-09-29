@@ -27,6 +27,8 @@ sha2 = "0.10"
 sha3 = "0.10"
 blake2 = "0.10"
 
+trybuild = "1"
+
 [features]
 default = ["digest", "std", "inline-struct"]
 
@@ -40,6 +42,10 @@ inline-struct = []
 [[test]]
 name = "derive"
 required-features = ["std", "derive", "digest"]
+
+[[test]]
+name = "derive_compile_fails"
+required-features = ["std", "derive"]
 
 [[test]]
 name = "deterministic_hash"
