@@ -394,13 +394,20 @@ fn generate_impl_for_enum(
         }
     });
 
-    let match_expr =
-        if !enum_variants.is_empty() {
-            let match_branches = enum_variants.iter().map(|v| {
+    let match_expr = if !enum_variants.is_empty() {
+        let match_branches = enum_variants
+            .iter()
+            .map(|v| {
                 let variant_name = &v.name;
                 let span = variant_name.span();
-                let field_bindings = (0..v.fields.len())
-                    .map(|i| syn::Ident::new(&format!("field{i}"), span))
+                let field_bindings = v
+                    .fields
+                    .iter()
+                    .enumerate()
+                    .map(|(i, f)| {
+                        let prefix = if f.attrs.skip.is_some() { "_" } else { "" };
+                        syn::Ident::new(&format!("{prefix}field{i}"), span)
+                    })
                     .collect::<Vec<_>>();
                 let pattern = match v.ty {
                     VariantType::Named => {
@@ -445,24 +452,25 @@ fn generate_impl_for_enum(
                     let name = variant_name.to_string();
                     quote_spanned!(span => #name)
                 };
-                Ok(quote_spanned!{span =>
+                Ok(quote_spanned! {span =>
                     #enum_name::#variant_name #pattern => {
                         let mut #encoder_var = #encoder_var.with_variant(#variant_name_encoding);
                         #(#encode_fields)*
                     }
                 })
-            }).collect::<Result<Vec<_>>>()?;
+            })
+            .collect::<Result<Vec<_>>>()?;
 
-            quote! {
-                match self {
-                    #(#match_branches)*
-                }
+        quote! {
+            match self {
+                #(#match_branches)*
             }
-        } else {
-            quote! {
-                match *self {}
-            }
-        };
+        }
+    } else {
+        quote! {
+            match *self {}
+        }
+    };
 
     Ok(quote! {
         impl #impl_generics #root_path::Digestable for #enum_name #ty_generics #where_clause {
