@@ -1,3 +1,10 @@
+## v0.2.4
+* Produce compile error if `rename` attr is used on enum variant [#22] \
+  Refer to [issue #21] to get more details on this
+
+[#22]: https://github.com/LFDT-Lockness/udigest/pull/22
+[issue #21]: https://github.com/LFDT-Lockness/udigest/issues/21
+
 ## v0.2.3
 * Relax bounds in `DigestAs` implementations: allow `?Sized` types [#18]
 * Implement `Digestable` for `core::convert::Infallible` (a.k.a. Never type) [#19]
