@@ -441,13 +441,7 @@ fn generate_impl_for_enum(
                 });
 
                 let variant_name_encoding = if let Some(attr) = &v.attrs.rename {
-                    return Err(Error::new(
-                        attr.rename.span(),
-                        "`rename` attribute is not supported on enum variants, and it has \
-                        been silently ignored in previous versions of the library without \
-                        any affect on enum hashing/encoding. Please, refer to issue #21 \
-                        for mitigation path: https://github.com/LFDT-Lockness/udigest/issues/21",
-                    ));
+                    quote::ToTokens::to_token_stream(&attr.value)
                 } else {
                     let name = variant_name.to_string();
                     quote_spanned!(span => #name)
