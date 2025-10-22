@@ -1,3 +1,5 @@
+//! In this test, we use proc macro in all possible combinations to make sure they compile
+
 #![allow(dead_code)]
 
 #[derive(udigest::Digestable)]
@@ -32,6 +34,7 @@ pub struct Empty;
 
 #[derive(udigest::Digestable)]
 pub enum EnumExample {
+    #[udigest(rename = "Variant0")]
     Variant1 {
         integer: i32,
         #[udigest(rename = 2_u32.to_be_bytes())]
