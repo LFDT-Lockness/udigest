@@ -1,6 +1,6 @@
 [package]
 name = "udigest-derive"
-version = "0.3.1"
+version = "0.3.2"
 edition.workspace = true
 description = "Proc macro for `udigest` crate"
 license = "MIT OR Apache-2.0"

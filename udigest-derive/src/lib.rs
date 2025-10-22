@@ -66,7 +66,35 @@ fn process_enum(
         .variants
         .iter()
         .map(|v| {
+            let mut variant_attrs = EnumVariantAttrs::default();
+
+            for attr in &v.attrs {
+                let Some(attr) = parse_attribute(attr)? else {
+                    continue;
+                };
+                match attr {
+                    attrs::Attr::Rename(_) if variant_attrs.rename.is_some() => {
+                        return Err(Error::new(attr.kw_span(), "attribute is duplicated"));
+                    }
+                    attrs::Attr::Rename(attr) => {
+                        variant_attrs.rename = Some(attr);
+                    }
+                    attrs::Attr::Root(_)
+                    | attrs::Attr::Tag(_)
+                    | attrs::Attr::AsBytes(_)
+                    | attrs::Attr::Bound(_)
+                    | attrs::Attr::Skip(_)
+                    | attrs::Attr::With(_)
+                    | attrs::Attr::As(_) => {
+                        return Err(Error::new(
+                            attr.kw_span(),
+                            "not supported as attribute for enum variant",
+                        ));
+                    }
+                }
+            }
             Ok(Variant {
+                attrs: variant_attrs,
                 name: v.ident.clone(),
                 ty: match &v.fields {
                     syn::Fields::Named(_) => VariantType::Named,
@@ -367,50 +395,72 @@ fn generate_impl_for_enum(
     });
 
     let match_expr = if !enum_variants.is_empty() {
-        let match_branches = enum_variants.iter().map(|v| {
-            let variant_name = &v.name;
-            let field_bindings = (0..v.fields.len())
-                .map(|i| syn::Ident::new(&format!("field{i}"), proc_macro2::Span::call_site()))
-                .collect::<Vec<_>>();
-            let pattern = match v.ty {
-                VariantType::Named => {
-                    let fields = v.fields.iter().zip(&field_bindings).map(|(f, binding)| {
-                        let field_name = &f.mem;
-                        quote! { #field_name: #binding }
-                    });
-                    quote! { {#(#fields),*} }
-                }
-                VariantType::Unnamed => {
-                    let fields = field_bindings.iter().map(|binding| {
-                        quote! {#binding}
-                    });
-                    quote! { (#(#fields),*) }
-                }
-                VariantType::Unit => {
-                    quote!()
-                }
-            };
+        let match_branches = enum_variants
+            .iter()
+            .map(|v| {
+                let variant_name = &v.name;
+                let span = variant_name.span();
+                let field_bindings = v
+                    .fields
+                    .iter()
+                    .enumerate()
+                    .map(|(i, f)| {
+                        let prefix = if f.attrs.skip.is_some() { "_" } else { "" };
+                        syn::Ident::new(&format!("{prefix}field{i}"), span)
+                    })
+                    .collect::<Vec<_>>();
+                let pattern = match v.ty {
+                    VariantType::Named => {
+                        let fields = v.fields.iter().zip(&field_bindings).map(|(f, binding)| {
+                            let field_name = &f.mem;
+                            quote_spanned! { span => #field_name: #binding }
+                        });
+                        quote_spanned! { span => {#(#fields),*} }
+                    }
+                    VariantType::Unnamed => {
+                        let fields = field_bindings.iter().map(|binding| {
+                            quote_spanned! { span => #binding }
+                        });
+                        quote_spanned! { span => (#(#fields),*) }
+                    }
+                    VariantType::Unit => {
+                        quote!()
+                    }
+                };
 
-            let encode_fields = field_bindings.iter().zip(&v.fields).map(|(binding, f)| {
-                encode_field(
-                    &root_path,
-                    &encoder_var,
-                    &f.attrs,
-                    f.span,
-                    &f.stringify_field_name(),
-                    &f.ty,
-                    &binding,
-                )
-            });
+                let encode_fields = field_bindings.iter().zip(&v.fields).map(|(binding, f)| {
+                    encode_field(
+                        &root_path,
+                        &encoder_var,
+                        &f.attrs,
+                        f.span,
+                        &f.stringify_field_name(),
+                        &f.ty,
+                        &binding,
+                    )
+                });
 
-            let variant_name_str = variant_name.to_string();
-            quote_spanned! {variant_name.span() =>
-                #enum_name::#variant_name #pattern => {
-                    let mut #encoder_var = #encoder_var.with_variant(#variant_name_str);
-                    #(#encode_fields)*
-                }
-            }
-        });
+                let variant_name_encoding = if let Some(attr) = &v.attrs.rename {
+                    return Err(Error::new(
+                        attr.rename.span(),
+                        "`rename` attribute is not supported on enum variants, and it has \
+                        been silently ignored in previous versions of the library without \
+                        any affect on enum hashing/encoding. Please, refer to issue #21 \
+                        for mitigation path: https://github.com/LFDT-Lockness/udigest/issues/21",
+                    ));
+                } else {
+                    let name = variant_name.to_string();
+                    quote_spanned!(span => #name)
+                };
+                Ok(quote_spanned! {span =>
+                    #enum_name::#variant_name #pattern => {
+                        let mut #encoder_var = #encoder_var.with_variant(#variant_name_encoding);
+                        #(#encode_fields)*
+                    }
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+
         quote! {
             match self {
                 #(#match_branches)*
@@ -639,6 +689,11 @@ struct FieldAttrs {
     as_: Option<attrs::As>,
 }
 
+#[derive(Default)]
+struct EnumVariantAttrs {
+    rename: Option<attrs::Rename>,
+}
+
 struct Field {
     span: proc_macro2::Span,
     attrs: FieldAttrs,
@@ -656,6 +711,7 @@ impl Field {
 }
 
 struct Variant {
+    attrs: EnumVariantAttrs,
     name: syn::Ident,
     fields: Vec<Field>,
     ty: VariantType,

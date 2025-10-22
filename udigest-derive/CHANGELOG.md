@@ -1,3 +1,10 @@
+## v0.3.2
+* Produce compile error if `rename` attr is used on enum variant [#22] \
+  Refer to [issue #21] to get more details on this
+
+[#22]: https://github.com/LFDT-Lockness/udigest/pull/22
+[issue #21]: https://github.com/LFDT-Lockness/udigest/issues/21
+
 ## v0.3.1
 * Update links in crate settings [#14]
 
