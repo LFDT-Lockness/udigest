@@ -1,3 +1,11 @@
+## v0.4.0
+* `rename` attribute now works on enum variants as it always should have been
+* Derive macro produces an error if two fields or two enum variants have the same
+  name encoding
+* Improve errors readability
+
+See [PR #23](https://github.com/LFDT-Lockness/udigest/pull/23).
+
 ## v0.3.2
 * Produce compile error if `rename` attr is used on enum variant [#22] \
   Refer to [issue #21] to get more details on this
