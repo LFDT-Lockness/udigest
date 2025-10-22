@@ -42,6 +42,10 @@ name = "derive"
 required-features = ["std", "derive", "digest"]
 
 [[test]]
+name = "derive_encoding"
+required-features = ["std", "derive", "digest"]
+
+[[test]]
 name = "deterministic_hash"
 required-features = ["derive", "digest"]
 

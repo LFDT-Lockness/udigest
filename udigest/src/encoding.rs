@@ -266,6 +266,13 @@ impl<'b, B: Buffer> EncodeValue<'b, B> {
         #[allow(clippy::expect_used)]
         EncodeEnum::new(self.buffer.take().expect("buffer must be available"))
     }
+
+    /// Encodes a value that implements [`Digestable`](crate::Digestable) trait
+    ///
+    /// Alias to `Digestable::unambiguously_encode(value, encoder)`
+    pub fn encode(self, value: &impl crate::Digestable) {
+        value.unambiguously_encode(self);
+    }
 }
 
 impl<'b, B: Buffer> Drop for EncodeValue<'b, B> {
