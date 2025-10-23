@@ -29,7 +29,8 @@ macro_rules! const_eq {
         let a = $a;
         let b = $b;
 
-        // macro can only be called on str, String, slice of bytes, array of bytes, or Vec of bytes
+        // macro can only be called on str, String, slice of bytes, array of bytes, Vec of bytes, Cow<str>,
+        // or Cow<[u8]>
         $crate::_macros::can_be_compared_in_const(&a);
         $crate::_macros::can_be_compared_in_const(&b);
 
@@ -81,4 +82,26 @@ mod test {
         assert!(TRUE);
         assert!(!FALSE);
     };
+}
+
+// Since `const_eq` macro uses unsafe code, we run some tests via miri to make sure there's no
+// UB.
+#[cfg(all(test, miri))]
+mod miri_test {
+    use alloc::borrow::ToOwned;
+    use core::hint::black_box;
+
+    #[test]
+    fn comparisons() {
+        let a = "one";
+        let b = "two";
+
+        // compare two static str
+        assert!(const_eq!(black_box(a), black_box(a)));
+        assert!(!const_eq!(black_box(a), black_box(b)));
+        // compare static str and a string
+        assert!(!const_eq!(black_box(a), "three".to_owned()));
+        // compare vec and string
+        assert!(!const_eq!("one".as_bytes().to_vec(), "two".to_owned()));
+    }
 }

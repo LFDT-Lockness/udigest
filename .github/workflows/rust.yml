@@ -77,6 +77,20 @@ jobs:
         cache-on-failure: "true"
     - name: Run clippy
       run: cargo clippy --all-features --tests -- -D clippy::all
+  miri:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: Swatinem/rust-cache@v2
+      with:
+        cache-on-failure: "true"
+    - name: Install Miri
+      run: |
+        rustup toolchain install nightly --component miri
+        rustup override set nightly
+        cargo miri setup
+    - name: Run Miri
+      run: cargo miri test --all-features --lib -p udigest
   check-changelog:
     runs-on: ubuntu-latest
     steps:
