@@ -1,0 +1,59 @@
+error[E0277]: the trait bound `Competence: Digestable` is not satisfied
+ --> tests/derive_compile_fails/field_not_digestable.rs:6:5
+  |
+3 | #[derive(udigest::Digestable)]
+  |          ------------------- required by a bound introduced by this call
+...
+6 |     competences: Vec<Competence>,
+  |     ^^^^^^^^^^^ the trait `Digestable` is not implemented for `Competence`
+  |
+  = help: the following other types implement trait `Digestable`:
+            &T
+            (A, B)
+            (A, B, C)
+            (A, B, C, D)
+            (A, B, C, D, E)
+            (A, B, C, D, E, F)
+            (A, B, C, D, E, F, G)
+            (A, B, C, D, E, F, G, H)
+          and $N others
+  = note: required for `Vec<Competence>` to implement `Digestable`
+
+error[E0277]: the trait bound `Competence: Digestable` is not satisfied
+  --> tests/derive_compile_fails/field_not_digestable.rs:18:16
+   |
+17 | #[derive(udigest::Digestable)]
+   |          ------------------- required by a bound introduced by this call
+18 | struct Stageur(Competence);
+   |                ^^^^^^^^^^ the trait `Digestable` is not implemented for `Competence`
+   |
+   = help: the following other types implement trait `Digestable`:
+             &T
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+             (A, B, C, D, E, F, G)
+             (A, B, C, D, E, F, G, H)
+           and $N others
+
+error[E0277]: the trait bound `Competence: Digestable` is not satisfied
+  --> tests/derive_compile_fails/field_not_digestable.rs:24:25
+   |
+23 | #[derive(udigest::Digestable)]
+   |          ------------------- required by a bound introduced by this call
+24 | struct PhdSummerStudent(Vec<Competence>);
+   |                         ^^^ the trait `Digestable` is not implemented for `Competence`
+   |
+   = help: the following other types implement trait `Digestable`:
+             &T
+             (A, B)
+             (A, B, C)
+             (A, B, C, D)
+             (A, B, C, D, E)
+             (A, B, C, D, E, F)
+             (A, B, C, D, E, F, G)
+             (A, B, C, D, E, F, G, H)
+           and $N others
+   = note: required for `Vec<Competence>` to implement `Digestable`

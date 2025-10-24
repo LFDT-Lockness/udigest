@@ -2,6 +2,7 @@
 
 /// A buffer based on `Vec<u8>`. Writing to the buffer
 /// appends data to the vector
+#[derive(Default)]
 pub struct VecBuf(pub Vec<u8>);
 
 impl udigest::encoding::Buffer for VecBuf {

@@ -256,6 +256,9 @@ pub mod inline_struct;
 pub mod as_;
 pub use as_::DigestAs;
 
+#[doc(hidden)]
+pub mod _macros;
+
 /// Digests a structured `value` using fixed-output hash function (like sha2-256)
 #[cfg(feature = "digest")]
 pub fn hash<D: digest::Digest>(value: &impl Digestable) -> digest::Output<D> {

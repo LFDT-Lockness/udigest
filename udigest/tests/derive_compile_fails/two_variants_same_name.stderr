@@ -1,0 +1,35 @@
+error[E0080]: evaluation panicked: variants `Dev` and `Cryptographer` have identical encoding
+ --> tests/derive_compile_fails/two_variants_same_name.rs:4:5
+  |
+4 |     Dev {
+  |     ^^^ evaluation of `_::has_unique_encoding` failed here
+
+error[E0080]: evaluation panicked: variants `Dev` and `Cryptographer` have identical encoding
+  --> tests/derive_compile_fails/two_variants_same_name.rs:19:5
+   |
+19 |     Dev {
+   |     ^^^ evaluation of `_::has_unique_encoding` failed here
+
+error[E0080]: evaluation panicked: variants `Dev` and `Cryptographer` have identical encoding
+  --> tests/derive_compile_fails/two_variants_same_name.rs:35:5
+   |
+35 |     Dev {
+   |     ^^^ evaluation of `_::has_unique_encoding` failed here
+
+error[E0080]: evaluation panicked: variants `Dev` and `Cryptographer` have identical encoding
+  --> tests/derive_compile_fails/two_variants_same_name.rs:51:5
+   |
+51 |     Dev {
+   |     ^^^ evaluation of `_::has_unique_encoding` failed here
+
+error[E0080]: evaluation panicked: variants `Dev` and `Cryptographer` have identical encoding
+  --> tests/derive_compile_fails/two_variants_same_name.rs:65:5
+   |
+65 |     Dev {
+   |     ^^^ evaluation of `_::has_unique_encoding` failed here
+
+error[E0080]: evaluation panicked: variants `Dev` and `Cryptographer` have identical encoding
+  --> tests/derive_compile_fails/two_variants_same_name.rs:81:5
+   |
+81 |     Dev {
+   |     ^^^ evaluation of `_::has_unique_encoding` failed here
