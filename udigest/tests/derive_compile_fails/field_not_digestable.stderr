@@ -5,8 +5,13 @@ error[E0277]: the trait bound `Competence: Digestable` is not satisfied
   |          ------------------- required by a bound introduced by this call
 ...
 6 |     competences: Vec<Competence>,
-  |     ^^^^^^^^^^^ the trait `Digestable` is not implemented for `Competence`
+  |     ^^^^^^^^^^^ unsatisfied trait bound
   |
+help: the trait `Digestable` is not implemented for `Competence`
+ --> tests/derive_compile_fails/field_not_digestable.rs:9:1
+  |
+9 | enum Competence {
+  | ^^^^^^^^^^^^^^^
   = help: the following other types implement trait `Digestable`:
             &T
             (A, B)
@@ -25,8 +30,13 @@ error[E0277]: the trait bound `Competence: Digestable` is not satisfied
 17 | #[derive(udigest::Digestable)]
    |          ------------------- required by a bound introduced by this call
 18 | struct Stageur(Competence);
-   |                ^^^^^^^^^^ the trait `Digestable` is not implemented for `Competence`
+   |                ^^^^^^^^^^ unsatisfied trait bound
    |
+help: the trait `Digestable` is not implemented for `Competence`
+  --> tests/derive_compile_fails/field_not_digestable.rs:9:1
+   |
+ 9 | enum Competence {
+   | ^^^^^^^^^^^^^^^
    = help: the following other types implement trait `Digestable`:
              &T
              (A, B)
@@ -44,8 +54,13 @@ error[E0277]: the trait bound `Competence: Digestable` is not satisfied
 23 | #[derive(udigest::Digestable)]
    |          ------------------- required by a bound introduced by this call
 24 | struct PhdSummerStudent(Vec<Competence>);
-   |                         ^^^ the trait `Digestable` is not implemented for `Competence`
+   |                         ^^^ unsatisfied trait bound
    |
+help: the trait `Digestable` is not implemented for `Competence`
+  --> tests/derive_compile_fails/field_not_digestable.rs:9:1
+   |
+ 9 | enum Competence {
+   | ^^^^^^^^^^^^^^^
    = help: the following other types implement trait `Digestable`:
              &T
              (A, B)
