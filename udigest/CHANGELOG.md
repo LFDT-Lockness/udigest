@@ -1,3 +1,8 @@
+## v0.3.1
+* Fix docs.rs build [#24]
+
+[#24]: https://github.com/LFDT-Lockness/udigest/pull/24
+
 ## v0.3.0
 * `rename` attribute is not ignored anymore on enum variants by `derive(udigest::Digestable)`
 
