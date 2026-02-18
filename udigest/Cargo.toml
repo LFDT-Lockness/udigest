@@ -56,6 +56,10 @@ name = "deterministic_hash"
 required-features = ["derive", "digest"]
 
 [[test]]
+name = "diff_structs_same_encoding"
+required-features = ["derive", "digest"]
+
+[[test]]
 name = "inline_struct"
 required-features = ["derive", "inline-struct"]
 

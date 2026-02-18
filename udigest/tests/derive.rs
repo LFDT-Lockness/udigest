@@ -112,3 +112,12 @@ pub struct OptionalBytes {
     #[udigest(as = std::collections::BTreeMap<_, udigest::Bytes>)]
     hash_map: std::collections::HashMap<String, Vec<u8>>,
 }
+
+#[derive(udigest::Digestable)]
+pub enum EnumWithDyn<'a> {
+    ProtocolName {
+        protocol_name: &'a str,
+        version: u64,
+    },
+    Custom(&'a dyn udigest::Digestable),
+}
