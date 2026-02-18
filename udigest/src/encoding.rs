@@ -220,28 +220,53 @@ impl<D: digest::Update> Buffer for BufferUpdate<D> {
 ///
 /// Can be used to encode (only) a single value. Value can be a leaf (bytestring) or a list of values.
 #[must_use = "encoder must be used to encode a value"]
-pub struct EncodeValue<'b, B: Buffer> {
-    buffer: Option<&'b mut B>,
+pub struct EncodeValue<'buf, 'tag> {
+    buffer: Option<&'buf mut dyn Buffer>,
+    tag: Option<&'tag [u8]>,
 }
 
-impl<'b, B: Buffer> EncodeValue<'b, B> {
+impl<'buf, 'tag> EncodeValue<'buf, 'tag> {
     /// Constructs an encoder
-    pub fn new(buffer: &'b mut B) -> Self {
+    pub fn new(buffer: &'buf mut dyn Buffer) -> Self {
         Self {
             buffer: Some(buffer),
+            tag: None,
         }
     }
 
+    /// Specifies a domain separation tag
+    ///
+    /// Tag will be unambiguously encoded
+    pub fn set_tag(&mut self, tag: &'tag [u8]) {
+        self.tag = Some(tag);
+    }
+
+    /// Specifies a domain separation tag
+    ///
+    /// Tag will be unambiguously encoded
+    pub fn with_tag(mut self, tag: &'tag [u8]) -> Self {
+        self.set_tag(tag);
+        self
+    }
+
     /// Encodes a list
-    pub fn encode_list(mut self) -> EncodeList<'b, B> {
+    pub fn encode_list(mut self) -> EncodeList<'buf, 'tag> {
         #[allow(clippy::expect_used)]
-        EncodeList::new(self.buffer.take().expect("buffer must be available"))
+        let mut encoder = EncodeList::new(self.buffer.take().expect("buffer must be available"));
+        if let Some(tag) = self.tag {
+            encoder.set_tag(tag);
+        }
+        encoder
     }
 
     /// Encodes a leaf (bytestring)
-    pub fn encode_leaf(mut self) -> EncodeLeaf<'b, B> {
+    pub fn encode_leaf(mut self) -> EncodeLeaf<'buf, 'tag> {
         #[allow(clippy::expect_used)]
-        EncodeLeaf::new(self.buffer.take().expect("buffer must be available"))
+        let mut encoder = EncodeLeaf::new(self.buffer.take().expect("buffer must be available"));
+        if let Some(tag) = self.tag {
+            encoder.set_tag(tag);
+        }
+        encoder
     }
 
     /// Encodes a leaf value
@@ -254,17 +279,25 @@ impl<'b, B: Buffer> EncodeValue<'b, B> {
     /// Encodes a struct
     ///
     /// Struct is represented as a list: `[field_name1, field_value1, ...]`
-    pub fn encode_struct(mut self) -> EncodeStruct<'b, B> {
+    pub fn encode_struct(mut self) -> EncodeStruct<'buf, 'tag> {
         #[allow(clippy::expect_used)]
-        EncodeStruct::new(self.buffer.take().expect("buffer must be available"))
+        let mut encoder = EncodeStruct::new(self.buffer.take().expect("buffer must be available"));
+        if let Some(tag) = self.tag {
+            encoder.set_tag(tag);
+        }
+        encoder
     }
 
     /// Encodes an enum
     ///
     /// Enum is represented as a list: `["variant", variant_name, field_name1, field_value1, ...]`
-    pub fn encode_enum(mut self) -> EncodeEnum<'b, B> {
+    pub fn encode_enum(mut self) -> EncodeEnum<'buf, 'tag> {
         #[allow(clippy::expect_used)]
-        EncodeEnum::new(self.buffer.take().expect("buffer must be available"))
+        let mut encoder = EncodeEnum::new(self.buffer.take().expect("buffer must be available"));
+        if let Some(tag) = self.tag {
+            encoder.set_tag(tag);
+        }
+        encoder
     }
 
     /// Encodes a value that implements [`Digestable`](crate::Digestable) trait
@@ -275,7 +308,7 @@ impl<'b, B: Buffer> EncodeValue<'b, B> {
     }
 }
 
-impl<'b, B: Buffer> Drop for EncodeValue<'b, B> {
+impl<'buf, 'tag> Drop for EncodeValue<'buf, 'tag> {
     fn drop(&mut self) {
         if let Some(buffer) = &mut self.buffer {
             // buffer is not consumed -- we write an empty leaf
@@ -289,21 +322,21 @@ impl<'b, B: Buffer> Drop for EncodeValue<'b, B> {
 /// Enum variant is encoded as a list: `["variant", variant_name]`. If variant contains any fields,
 /// they are encoded in the same way as [structure](EncodeStruct) fields are encoded.
 #[must_use = "encoder must be used to encode a value"]
-pub struct EncodeEnum<'b, B: Buffer> {
-    buffer: &'b mut B,
-    tag: Option<&'b [u8]>,
+pub struct EncodeEnum<'buf, 'tag> {
+    buffer: &'buf mut dyn Buffer,
+    tag: Option<&'tag [u8]>,
 }
 
-impl<'b, B: Buffer> EncodeEnum<'b, B> {
+impl<'buf, 'tag> EncodeEnum<'buf, 'tag> {
     /// Constructs an encoder
-    pub fn new(buffer: &'b mut B) -> Self {
+    pub fn new(buffer: &'buf mut dyn Buffer) -> Self {
         Self { buffer, tag: None }
     }
 
     /// Encodes a variant name
     ///
     /// Returns a structure encoder that can be used to encode any fields the variant may have
-    pub fn with_variant(self, variant_name: impl AsRef<[u8]>) -> EncodeStruct<'b, B> {
+    pub fn with_variant(self, variant_name: impl AsRef<[u8]>) -> EncodeStruct<'buf, 'tag> {
         let mut s = EncodeStruct::new(self.buffer);
         s.add_field("variant").encode_leaf().chain(variant_name);
         if let Some(tag) = self.tag {
@@ -315,27 +348,27 @@ impl<'b, B: Buffer> EncodeEnum<'b, B> {
     /// Specifies a domain separation tag
     ///
     /// Tag will be unambiguously encoded
-    pub fn set_tag(&mut self, tag: &'b [u8]) {
+    pub fn set_tag(&mut self, tag: &'tag [u8]) {
         self.tag = Some(tag);
     }
 
     /// Specifies a domain separation tag
     ///
     /// Tag will be unambiguously encoded
-    pub fn with_tag(mut self, tag: &'b [u8]) -> Self {
+    pub fn with_tag(mut self, tag: &'tag [u8]) -> Self {
         self.set_tag(tag);
         self
     }
 }
 
 /// Encodes a structure
-pub struct EncodeStruct<'b, B: Buffer> {
-    list: EncodeList<'b, B>,
+pub struct EncodeStruct<'buf, 'tag> {
+    list: EncodeList<'buf, 'tag>,
 }
 
-impl<'b, B: Buffer> EncodeStruct<'b, B> {
+impl<'buf, 'tag> EncodeStruct<'buf, 'tag> {
     /// Constructs an encoder
-    pub fn new(buffer: &'b mut B) -> Self {
+    pub fn new(buffer: &'buf mut dyn Buffer) -> Self {
         Self {
             list: EncodeList::new(buffer),
         }
@@ -344,14 +377,14 @@ impl<'b, B: Buffer> EncodeStruct<'b, B> {
     /// Specifies a domain separation tag
     ///
     /// Tag will be unambiguously encoded
-    pub fn set_tag(&mut self, tag: &'b [u8]) {
+    pub fn set_tag(&mut self, tag: &'tag [u8]) {
         self.list.set_tag(tag);
     }
 
     /// Specifies a domain separation tag
     ///
     /// Tag will be unambiguously encoded
-    pub fn with_tag(mut self, tag: &'b [u8]) -> Self {
+    pub fn with_tag(mut self, tag: &'tag [u8]) -> Self {
         self.set_tag(tag);
         self
     }
@@ -359,7 +392,7 @@ impl<'b, B: Buffer> EncodeStruct<'b, B> {
     /// Adds a fields to the structure
     ///
     /// Returns an encoder that shall be used to encode the fields value
-    pub fn add_field(&mut self, field_name: impl AsRef<[u8]>) -> EncodeValue<'_, B> {
+    pub fn add_field<'t>(&mut self, field_name: impl AsRef<[u8]>) -> EncodeValue<'_, 't> {
         self.list.add_leaf().chain(field_name);
         self.list.add_item()
     }
@@ -371,15 +404,15 @@ impl<'b, B: Buffer> EncodeStruct<'b, B> {
 }
 
 /// Encodes a leaf (bytestring)
-pub struct EncodeLeaf<'b, B: Buffer> {
-    buffer: &'b mut B,
+pub struct EncodeLeaf<'buf, 'tag> {
+    buffer: &'buf mut dyn Buffer,
     len: usize,
-    tag: Option<&'b [u8]>,
+    tag: Option<&'tag [u8]>,
 }
 
-impl<'b, B: Buffer> EncodeLeaf<'b, B> {
+impl<'buf, 'tag> EncodeLeaf<'buf, 'tag> {
     /// Constructs a leaf
-    pub fn new(buffer: &'b mut B) -> Self {
+    pub fn new(buffer: &'buf mut dyn Buffer) -> Self {
         Self {
             buffer,
             len: 0,
@@ -390,14 +423,14 @@ impl<'b, B: Buffer> EncodeLeaf<'b, B> {
     /// Specifies a domain separation tag
     ///
     /// Tag will be unambiguously encoded
-    pub fn set_tag(&mut self, tag: &'b [u8]) {
+    pub fn set_tag(&mut self, tag: &'tag [u8]) {
         self.tag = Some(tag)
     }
 
     /// Specifies a domain separation tag
     ///
     /// Tag will be unambiguously encoded
-    pub fn with_tag(mut self, tag: &'b [u8]) -> Self {
+    pub fn with_tag(mut self, tag: &'tag [u8]) -> Self {
         self.set_tag(tag);
         self
     }
@@ -432,7 +465,7 @@ impl<'b, B: Buffer> EncodeLeaf<'b, B> {
     pub fn finish(self) {}
 }
 
-impl<'b, B: Buffer> Drop for EncodeLeaf<'b, B> {
+impl<'buf, 'tag> Drop for EncodeLeaf<'buf, 'tag> {
     fn drop(&mut self) {
         encode_len(self.buffer, self.len);
 
@@ -448,15 +481,15 @@ impl<'b, B: Buffer> Drop for EncodeLeaf<'b, B> {
 }
 
 /// Encodes a list of values
-pub struct EncodeList<'b, B: Buffer> {
-    buffer: &'b mut B,
+pub struct EncodeList<'buf, 'tag> {
+    buffer: &'buf mut dyn Buffer,
     len: usize,
-    tag: Option<&'b [u8]>,
+    tag: Option<&'tag [u8]>,
 }
 
-impl<'b, B: Buffer> EncodeList<'b, B> {
+impl<'buf, 'tag> EncodeList<'buf, 'tag> {
     /// Constructs an encoder
-    pub fn new(buffer: &'b mut B) -> Self {
+    pub fn new(buffer: &'buf mut dyn Buffer) -> Self {
         Self {
             buffer,
             len: 0,
@@ -467,14 +500,14 @@ impl<'b, B: Buffer> EncodeList<'b, B> {
     /// Specifies a domain separation tag
     ///
     /// Tag will be unambiguously encoded
-    pub fn set_tag(&mut self, tag: &'b [u8]) {
+    pub fn set_tag(&mut self, tag: &'tag [u8]) {
         self.tag = Some(tag)
     }
 
     /// Specifies a domain separation tag
     ///
     /// Tag will be unambiguously encoded
-    pub fn with_tag(mut self, tag: &'b [u8]) -> Self {
+    pub fn with_tag(mut self, tag: &'tag [u8]) -> Self {
         self.set_tag(tag);
         self
     }
@@ -486,7 +519,7 @@ impl<'b, B: Buffer> EncodeList<'b, B> {
     /// ## Panic
     /// Panics if list length overflows `usize`
     #[allow(clippy::expect_used)]
-    pub fn add_item(&mut self) -> EncodeValue<'_, B> {
+    pub fn add_item<'t>(&mut self) -> EncodeValue<'_, 't> {
         self.len = self.len.checked_add(1).expect("list len overflows usize");
         EncodeValue::new(self.buffer)
     }
@@ -494,14 +527,14 @@ impl<'b, B: Buffer> EncodeList<'b, B> {
     /// Adds a leaf (bytestring) to the list
     ///
     /// Alias to `.add_item().encode_leaf()`
-    pub fn add_leaf(&mut self) -> EncodeLeaf<'_, B> {
+    pub fn add_leaf<'t>(&mut self) -> EncodeLeaf<'_, 't> {
         self.add_item().encode_leaf()
     }
 
     /// Adds a sublist to the list
     ///
     /// Alias to `.add_item().encode_list()`
-    pub fn add_list(&mut self) -> EncodeList<'_, B> {
+    pub fn add_list(&mut self) -> EncodeList<'_, '_> {
         self.add_item().encode_list()
     }
 
@@ -511,7 +544,7 @@ impl<'b, B: Buffer> EncodeList<'b, B> {
     pub fn finish(self) {}
 }
 
-impl<'b, B: Buffer> Drop for EncodeList<'b, B> {
+impl<'buf, 'tag> Drop for EncodeList<'buf, 'tag> {
     fn drop(&mut self) {
         encode_len(self.buffer, self.len);
 
@@ -530,7 +563,7 @@ impl<'b, B: Buffer> Drop for EncodeList<'b, B> {
 ///
 /// Although we expose how the length is encoded, normally you should use [EncodeList]
 /// and [EncodeLeaf] which use this function internally
-pub fn encode_len(buffer: &mut impl Buffer, len: usize) {
+pub fn encode_len(buffer: &mut dyn Buffer, len: usize) {
     match u32::try_from(len) {
         Ok(len_32) => {
             buffer.write(&len_32.to_be_bytes());

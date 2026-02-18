@@ -495,9 +495,7 @@ fn generate_impl_for_enum(
 
     Ok(quote! {
         impl #impl_generics #root_path::Digestable for #enum_name #ty_generics #where_clause {
-            fn unambiguously_encode<B>(&self, encoder: #root_path::encoding::EncodeValue<B>)
-            where
-                B: #root_path::Buffer
+            fn unambiguously_encode(&self, encoder: #root_path::encoding::EncodeValue)
             {
                 let mut #encoder_var = encoder.encode_enum();
                 #specify_tag
@@ -549,9 +547,7 @@ fn generate_impl_for_struct(
 
     Ok(quote! {
         impl #impl_generics #root_path::Digestable for #struct_name #ty_generics #where_clause {
-            fn unambiguously_encode<B>(&self, encoder: #root_path::encoding::EncodeValue<B>)
-            where
-                B: #root_path::Buffer
+            fn unambiguously_encode(&self, encoder: #root_path::encoding::EncodeValue)
             {
                 let mut #encoder_var = encoder.encode_struct();
                 #specify_tag

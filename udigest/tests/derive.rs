@@ -87,10 +87,7 @@ pub struct StructAttrWith {
 pub struct Bar;
 
 mod encoding {
-    pub fn encode_bar<B: udigest::Buffer>(
-        _bar: &super::Bar,
-        encoder: udigest::encoding::EncodeValue<B>,
-    ) {
+    pub fn encode_bar(_bar: &super::Bar, encoder: udigest::encoding::EncodeValue) {
         let mut list = encoder.encode_list();
         list.add_leaf().chain("foo");
         list.add_leaf().chain("bar");

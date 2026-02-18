@@ -83,7 +83,7 @@ impl<'t, F: FieldsList> InlineStruct<'t, F> {
 }
 
 impl<'a, F: FieldsList> crate::Digestable for InlineStruct<'a, F> {
-    fn unambiguously_encode<B: crate::Buffer>(&self, encoder: crate::encoding::EncodeValue<B>) {
+    fn unambiguously_encode(&self, encoder: crate::encoding::EncodeValue) {
         let mut struct_encode = encoder.encode_struct();
         if let Some(tag) = self.tag {
             struct_encode.set_tag(tag);
@@ -202,7 +202,7 @@ mod sealed {
 /// Normally, you don't need to use it directly. Use [`inline_struct!`] macro instead.
 pub trait FieldsList: sealed::Sealed {
     /// Encodes all fields in order from the first to last
-    fn encode<B: crate::Buffer>(&self, encoder: &mut crate::encoding::EncodeStruct<B>);
+    fn encode(&self, encoder: &mut crate::encoding::EncodeStruct);
 }
 
 /// Empty list of fields
@@ -212,7 +212,7 @@ pub trait FieldsList: sealed::Sealed {
 pub struct Nil;
 impl sealed::Sealed for Nil {}
 impl FieldsList for Nil {
-    fn encode<B: crate::Buffer>(&self, _encoder: &mut crate::encoding::EncodeStruct<B>) {
+    fn encode(&self, _encoder: &mut crate::encoding::EncodeStruct) {
         // Empty list - do nothing
     }
 }
@@ -230,7 +230,7 @@ pub struct Cons<'a, V, T> {
 impl<'a, V, T> sealed::Sealed for Cons<'a, V, T> {}
 
 impl<'a, V: crate::Digestable, T: FieldsList> FieldsList for Cons<'a, V, T> {
-    fn encode<B: crate::Buffer>(&self, encoder: &mut crate::encoding::EncodeStruct<B>) {
+    fn encode(&self, encoder: &mut crate::encoding::EncodeStruct) {
         // Since we store fields from last to first, we need to encode the tail first
         // to reverse order of fields
         self.tail.encode(encoder);

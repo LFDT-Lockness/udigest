@@ -167,9 +167,7 @@ pub use encoding::Buffer;
 ///   Can be used to override the field encoding. Accepts as input a function with a signature:
 ///   ```rust,no_run
 ///   # type T = String;
-///   fn encoder<B>(value: &T, encoder: udigest::encoding::EncodeValue<B>)
-///   where
-///       B: udigest::Buffer
+///   fn encoder(value: &T, encoder: udigest::encoding::EncodeValue)
 ///   # {}
 ///   ```
 ///   Example:
@@ -182,9 +180,9 @@ pub use encoding::Buffer;
 ///       #[udigest(with = encode_instant)]
 ///       created_at: std::time::Instant,
 ///   }
-///   fn encode_instant<B: udigest::Buffer>(
+///   fn encode_instant(
 ///       instant: &std::time::Instant,
-///       encoder: udigest::encoding::EncodeValue<B>
+///       encoder: udigest::encoding::EncodeValue
 ///   ) {
 ///       todo!()
 ///   }
@@ -346,17 +344,17 @@ where
 /// A value that can be unambiguously digested
 pub trait Digestable {
     /// Unambiguously encodes the value
-    fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>);
+    fn unambiguously_encode(&self, encoder: encoding::EncodeValue);
 }
 
 impl<T: Digestable + ?Sized> Digestable for &T {
-    fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+    fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
         (*self).unambiguously_encode(encoder)
     }
 }
 
 impl Digestable for core::convert::Infallible {
-    fn unambiguously_encode<B: Buffer>(&self, _encoder: encoding::EncodeValue<B>) {
+    fn unambiguously_encode(&self, _encoder: encoding::EncodeValue) {
         match *self {}
     }
 }
@@ -367,7 +365,7 @@ impl Digestable for core::convert::Infallible {
 pub struct Bytes<T: ?Sized = [u8; 0]>(pub T);
 
 impl<T: AsRef<[u8]> + ?Sized> Digestable for Bytes<T> {
-    fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+    fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
         encoder.encode_leaf_value(self.0.as_ref())
     }
 }
@@ -375,7 +373,7 @@ impl<T: AsRef<[u8]> + ?Sized> Digestable for Bytes<T> {
 macro_rules! digestable_signed_integers {
     ($($type:ty),*) => {$(
         impl Digestable for $type {
-            fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+            fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
                 encode_signed_integer(
                     self.is_positive(),
                     &self.unsigned_abs().to_be_bytes(),
@@ -387,11 +385,7 @@ macro_rules! digestable_signed_integers {
 }
 
 /// Encodes an integer without leading zeroes
-fn encode_signed_integer<B: Buffer>(
-    is_positive: bool,
-    abs_be_bytes: &[u8],
-    encoder: encoding::EncodeValue<B>,
-) {
+fn encode_signed_integer(is_positive: bool, abs_be_bytes: &[u8], encoder: encoding::EncodeValue) {
     let leading_zeroes = abs_be_bytes.iter().take_while(|b| **b == 0).count();
     let truncated_be_bytes = &abs_be_bytes[leading_zeroes..];
     if truncated_be_bytes.is_empty() {
@@ -409,7 +403,7 @@ fn encode_signed_integer<B: Buffer>(
 macro_rules! digestable_unsigned_integers {
     ($($type:ty),*) => {$(
         impl Digestable for $type {
-            fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+            fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
                 encode_unsigned_integer(&self.to_be_bytes(), encoder)
             }
         }
@@ -417,7 +411,7 @@ macro_rules! digestable_unsigned_integers {
 }
 
 /// Encodes an integer without leading zeroes
-fn encode_unsigned_integer<B: Buffer>(be_bytes: &[u8], encoder: encoding::EncodeValue<B>) {
+fn encode_unsigned_integer(be_bytes: &[u8], encoder: encoding::EncodeValue) {
     let leading_zeroes = be_bytes.iter().take_while(|b| **b == 0).count();
     let truncated_be_bytes = &be_bytes[leading_zeroes..];
     encoder.encode_leaf_value(truncated_be_bytes)
@@ -427,13 +421,13 @@ digestable_signed_integers!(i8, i16, i32, i64, i128, isize);
 digestable_unsigned_integers!(u8, u16, u32, u64, u128, usize);
 
 impl Digestable for bool {
-    fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+    fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
         u8::from(*self).unambiguously_encode(encoder)
     }
 }
 
 impl Digestable for char {
-    fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+    fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
         // Any char can be represented using two bytes, but strangely Rust does not provide
         // conversion into `u16`, so we convert it into `u32`
         let c: u32 = (*self).into();
@@ -445,7 +439,7 @@ impl Digestable for char {
 macro_rules! digestable_as_bytes {
     ($($type:ty as $to_bytes:ident),*) => {$(
         impl Digestable for $type {
-            fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+            fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
                 let bytes: &[u8] = self.$to_bytes();
                 encoder.encode_leaf().chain(bytes);
             }
@@ -462,7 +456,7 @@ digestable_as_bytes!(
 digestable_as_bytes!(str as as_ref, core::ffi::CStr as to_bytes);
 
 impl<T: Digestable> Digestable for Option<T> {
-    fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+    fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
         match self {
             Some(value) => {
                 let mut encoder = encoder.encode_enum().with_variant("Some");
@@ -477,7 +471,7 @@ impl<T: Digestable> Digestable for Option<T> {
 }
 
 impl<T: Digestable, E: Digestable> Digestable for Result<T, E> {
-    fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+    fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
         match self {
             Ok(value) => {
                 let mut encoder = encoder.encode_enum().with_variant("Ok");
@@ -496,7 +490,7 @@ impl<T: Digestable, E: Digestable> Digestable for Result<T, E> {
 macro_rules! digestable_tuple {
     ($($letter:ident),+) => {
         impl<$($letter: Digestable),+> Digestable for ($($letter,)+) {
-            fn unambiguously_encode<BUF: Buffer>(&self, encoder: encoding::EncodeValue<BUF>) {
+            fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
                 #[allow(non_snake_case)]
                 let ($($letter,)+) = self;
                 let mut list = encoder.encode_list();
@@ -527,8 +521,8 @@ digestable_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N);
 digestable_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O);
 digestable_tuple!(A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P);
 
-fn unambiguously_encode_iter<B: Buffer, T: Digestable>(
-    encoder: encoding::EncodeValue<B>,
+fn unambiguously_encode_iter<T: Digestable>(
+    encoder: encoding::EncodeValue,
     iter: impl IntoIterator<Item = T>,
 ) {
     let mut list = encoder.encode_list();
@@ -539,48 +533,48 @@ fn unambiguously_encode_iter<B: Buffer, T: Digestable>(
 }
 
 impl<T: Digestable> Digestable for [T] {
-    fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+    fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
         unambiguously_encode_iter(encoder, self)
     }
 }
 
 impl<T: Digestable, const N: usize> Digestable for [T; N] {
-    fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+    fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
         self.as_slice().unambiguously_encode(encoder)
     }
 }
 
 #[cfg(feature = "alloc")]
 impl<T: Digestable> Digestable for alloc::vec::Vec<T> {
-    fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+    fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
         self.as_slice().unambiguously_encode(encoder)
     }
 }
 
 #[cfg(feature = "alloc")]
 impl<T: Digestable> Digestable for alloc::collections::LinkedList<T> {
-    fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+    fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
         unambiguously_encode_iter(encoder, self)
     }
 }
 
 #[cfg(feature = "alloc")]
 impl<T: Digestable> Digestable for alloc::collections::VecDeque<T> {
-    fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+    fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
         unambiguously_encode_iter(encoder, self)
     }
 }
 
 #[cfg(feature = "alloc")]
 impl<T: Digestable> Digestable for alloc::collections::BTreeSet<T> {
-    fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+    fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
         unambiguously_encode_iter(encoder, self)
     }
 }
 
 #[cfg(feature = "alloc")]
 impl<K: Digestable, V: Digestable> Digestable for alloc::collections::BTreeMap<K, V> {
-    fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+    fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
         unambiguously_encode_iter(encoder, self)
     }
 }
@@ -590,7 +584,7 @@ impl<K: Digestable, V: Digestable> Digestable for alloc::collections::BTreeMap<K
 macro_rules! digestable_wrapper {
     ($($wrapper:ty),*) => {$(
         impl<T: Digestable + ?Sized> Digestable for $wrapper {
-            fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+            fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
                 (&**self).unambiguously_encode(encoder)
             }
         }
@@ -605,13 +599,13 @@ impl<'a, T> Digestable for alloc::borrow::Cow<'a, T>
 where
     T: Digestable + alloc::borrow::ToOwned + ?Sized + 'a,
 {
-    fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+    fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
         self.as_ref().unambiguously_encode(encoder);
     }
 }
 
 impl<T> Digestable for core::marker::PhantomData<T> {
-    fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+    fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
         // Encode an empty list
         encoder.encode_list();
     }
