@@ -259,7 +259,7 @@ pub mod _macros;
 
 /// Digests a structured `value` using fixed-output hash function (like sha2-256)
 #[cfg(feature = "digest")]
-pub fn hash<D: digest::Digest>(value: &impl Digestable) -> digest::Output<D> {
+pub fn hash<D: digest::Digest>(value: &dyn Digestable) -> digest::Output<D> {
     let mut hash = encoding::BufferDigest(D::new());
     value.unambiguously_encode(encoding::EncodeValue::new(&mut hash));
     hash.0.finalize()
@@ -282,7 +282,7 @@ pub fn hash_iter<D: digest::Digest>(
 
 /// Digests a structured `value` using extendable-output hash function (like shake-256)
 #[cfg(feature = "digest")]
-pub fn hash_xof<D>(value: &impl Digestable) -> D::Reader
+pub fn hash_xof<D>(value: &dyn Digestable) -> D::Reader
 where
     D: Default + digest::Update + digest::ExtendableOutput,
 {
@@ -309,7 +309,7 @@ where
 
 /// Digests a structured `value` using variable-output hash function (like blake2b)
 #[cfg(feature = "digest")]
-pub fn hash_vof<D>(value: &impl Digestable, out: &mut [u8]) -> Result<(), digest::InvalidOutputSize>
+pub fn hash_vof<D>(value: &dyn Digestable, out: &mut [u8]) -> Result<(), digest::InvalidOutputSize>
 where
     D: digest::VariableOutput + digest::Update,
 {
