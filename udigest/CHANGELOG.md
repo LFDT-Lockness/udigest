@@ -1,3 +1,9 @@
+## v0.4.0
+* Make `Digestable` trait `dyn`-compatible [#25]
+* Update hash functions to accept `&dyn Digestable` [#25]
+
+[#25]: https://github.com/LFDT-Lockness/udigest/pull/25
+
 ## v0.3.1
 * Fix docs.rs build [#24]
 

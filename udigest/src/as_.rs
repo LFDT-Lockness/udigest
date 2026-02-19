@@ -12,12 +12,12 @@
 //!
 //! See more examples in [macro@Digestable] macro docs.
 
-use crate::{Buffer, Digestable, encoding};
+use crate::{Digestable, encoding};
 
 /// Custom rule for digesting an instance of `T`
 pub trait DigestAs<T: ?Sized> {
     /// Digests `value`
-    fn digest_as<B: Buffer>(value: &T, encoder: encoding::EncodeValue<B>);
+    fn digest_as(value: &T, encoder: encoding::EncodeValue);
 }
 
 impl<T, U> DigestAs<&T> for &U
@@ -25,7 +25,7 @@ where
     T: ?Sized,
     U: DigestAs<T> + ?Sized,
 {
-    fn digest_as<B: Buffer>(value: &&T, encoder: encoding::EncodeValue<B>) {
+    fn digest_as(value: &&T, encoder: encoding::EncodeValue) {
         U::digest_as(*value, encoder)
     }
 }
@@ -55,7 +55,7 @@ impl<T, U> Digestable for As<T, U>
 where
     U: DigestAs<T>,
 {
-    fn unambiguously_encode<B: Buffer>(&self, encoder: encoding::EncodeValue<B>) {
+    fn unambiguously_encode(&self, encoder: encoding::EncodeValue) {
         U::digest_as(&self.value, encoder)
     }
 }
@@ -84,7 +84,7 @@ impl<T> DigestAs<T> for Same
 where
     T: Digestable + ?Sized,
 {
-    fn digest_as<B: Buffer>(value: &T, encoder: encoding::EncodeValue<B>) {
+    fn digest_as(value: &T, encoder: encoding::EncodeValue) {
         value.unambiguously_encode(encoder)
     }
 }
@@ -95,7 +95,7 @@ impl<T> DigestAs<T> for Bytes
 where
     T: AsRef<[u8]> + ?Sized,
 {
-    fn digest_as<B: Buffer>(value: &T, encoder: encoding::EncodeValue<B>) {
+    fn digest_as(value: &T, encoder: encoding::EncodeValue) {
         encoder.encode_leaf_value(value.as_ref())
     }
 }
@@ -104,7 +104,7 @@ impl<T, U> DigestAs<Option<T>> for Option<U>
 where
     U: DigestAs<T>,
 {
-    fn digest_as<B: Buffer>(value: &Option<T>, encoder: encoding::EncodeValue<B>) {
+    fn digest_as(value: &Option<T>, encoder: encoding::EncodeValue) {
         value
             .as_ref()
             .map(As::<&T, &U>::new)
@@ -117,7 +117,7 @@ where
     TAs: DigestAs<T>,
     EAs: DigestAs<E>,
 {
-    fn digest_as<B: Buffer>(value: &Result<T, E>, encoder: encoding::EncodeValue<B>) {
+    fn digest_as(value: &Result<T, E>, encoder: encoding::EncodeValue) {
         value
             .as_ref()
             .map(As::<&T, &TAs>::new)
@@ -130,7 +130,7 @@ impl<T, U> DigestAs<[T]> for [U]
 where
     U: DigestAs<T>,
 {
-    fn digest_as<B: Buffer>(value: &[T], encoder: encoding::EncodeValue<B>) {
+    fn digest_as(value: &[T], encoder: encoding::EncodeValue) {
         crate::unambiguously_encode_iter(encoder, value.iter().map(As::<&T, &U>::new))
     }
 }
@@ -139,7 +139,7 @@ impl<T, U, const N: usize> DigestAs<[T; N]> for [U; N]
 where
     U: DigestAs<T>,
 {
-    fn digest_as<B: Buffer>(value: &[T; N], encoder: encoding::EncodeValue<B>) {
+    fn digest_as(value: &[T; N], encoder: encoding::EncodeValue) {
         crate::unambiguously_encode_iter(encoder, value.iter().map(As::<&T, &U>::new))
     }
 }
@@ -149,7 +149,7 @@ impl<T, U> DigestAs<alloc::vec::Vec<T>> for alloc::vec::Vec<U>
 where
     U: DigestAs<T>,
 {
-    fn digest_as<B: Buffer>(value: &alloc::vec::Vec<T>, encoder: encoding::EncodeValue<B>) {
+    fn digest_as(value: &alloc::vec::Vec<T>, encoder: encoding::EncodeValue) {
         crate::unambiguously_encode_iter(encoder, value.iter().map(As::<&T, &U>::new))
     }
 }
@@ -158,10 +158,7 @@ impl<T, U> DigestAs<alloc::collections::LinkedList<T>> for alloc::collections::L
 where
     U: DigestAs<T>,
 {
-    fn digest_as<B: Buffer>(
-        value: &alloc::collections::LinkedList<T>,
-        encoder: encoding::EncodeValue<B>,
-    ) {
+    fn digest_as(value: &alloc::collections::LinkedList<T>, encoder: encoding::EncodeValue) {
         crate::unambiguously_encode_iter(encoder, value.iter().map(As::<&T, &U>::new))
     }
 }
@@ -170,10 +167,7 @@ impl<T, U> DigestAs<alloc::collections::VecDeque<T>> for alloc::collections::Vec
 where
     U: DigestAs<T>,
 {
-    fn digest_as<B: Buffer>(
-        value: &alloc::collections::VecDeque<T>,
-        encoder: encoding::EncodeValue<B>,
-    ) {
+    fn digest_as(value: &alloc::collections::VecDeque<T>, encoder: encoding::EncodeValue) {
         crate::unambiguously_encode_iter(encoder, value.iter().map(As::<&T, &U>::new))
     }
 }
@@ -182,10 +176,7 @@ impl<T, U> DigestAs<alloc::collections::BTreeSet<T>> for alloc::collections::BTr
 where
     U: DigestAs<T>,
 {
-    fn digest_as<B: Buffer>(
-        value: &alloc::collections::BTreeSet<T>,
-        encoder: encoding::EncodeValue<B>,
-    ) {
+    fn digest_as(value: &alloc::collections::BTreeSet<T>, encoder: encoding::EncodeValue) {
         crate::unambiguously_encode_iter(encoder, value.iter().map(As::<&T, &U>::new))
     }
 }
@@ -197,10 +188,7 @@ where
     KAs: DigestAs<K>,
     VAs: DigestAs<V>,
 {
-    fn digest_as<B: Buffer>(
-        value: &alloc::collections::BTreeMap<K, V>,
-        encoder: encoding::EncodeValue<B>,
-    ) {
+    fn digest_as(value: &alloc::collections::BTreeMap<K, V>, encoder: encoding::EncodeValue) {
         crate::unambiguously_encode_iter(
             encoder,
             value
@@ -217,10 +205,7 @@ where
     U: DigestAs<T>,
     T: core::cmp::Ord,
 {
-    fn digest_as<B: Buffer>(
-        value: &std::collections::HashSet<T>,
-        encoder: encoding::EncodeValue<B>,
-    ) {
+    fn digest_as(value: &std::collections::HashSet<T>, encoder: encoding::EncodeValue) {
         let ordered_map = value
             .iter()
             .map(As::<&T, &U>::new)
@@ -240,10 +225,7 @@ where
     VAs: DigestAs<V>,
     K: core::cmp::Ord,
 {
-    fn digest_as<B: Buffer>(
-        value: &std::collections::HashMap<K, V>,
-        encoder: encoding::EncodeValue<B>,
-    ) {
+    fn digest_as(value: &std::collections::HashMap<K, V>, encoder: encoding::EncodeValue) {
         let ordered_map = value
             .iter()
             .map(|(key, value)| (As::<&K, &KAs>::new(key), As::<&V, &VAs>::new(value)))
@@ -260,7 +242,7 @@ where
     U: DigestAs<T> + ?Sized,
     T: ?Sized,
 {
-    fn digest_as<B: Buffer>(value: &alloc::boxed::Box<T>, encoder: encoding::EncodeValue<B>) {
+    fn digest_as(value: &alloc::boxed::Box<T>, encoder: encoding::EncodeValue) {
         U::digest_as(value, encoder)
     }
 }
@@ -271,7 +253,7 @@ where
     U: DigestAs<T> + ?Sized,
     T: ?Sized,
 {
-    fn digest_as<B: Buffer>(value: &alloc::rc::Rc<T>, encoder: encoding::EncodeValue<B>) {
+    fn digest_as(value: &alloc::rc::Rc<T>, encoder: encoding::EncodeValue) {
         U::digest_as(value, encoder)
     }
 }
@@ -282,7 +264,7 @@ where
     U: DigestAs<T> + ?Sized,
     T: ?Sized,
 {
-    fn digest_as<B: Buffer>(value: &alloc::sync::Arc<T>, encoder: encoding::EncodeValue<B>) {
+    fn digest_as(value: &alloc::sync::Arc<T>, encoder: encoding::EncodeValue) {
         U::digest_as(value, encoder)
     }
 }
@@ -293,7 +275,7 @@ where
     U: DigestAs<T> + alloc::borrow::ToOwned + ?Sized,
     T: alloc::borrow::ToOwned + ?Sized + 'a,
 {
-    fn digest_as<B: Buffer>(value: &alloc::borrow::Cow<'a, T>, encoder: encoding::EncodeValue<B>) {
+    fn digest_as(value: &alloc::borrow::Cow<'a, T>, encoder: encoding::EncodeValue) {
         U::digest_as(value.as_ref(), encoder)
     }
 }
@@ -304,7 +286,7 @@ where
     U: DigestAs<T> + ?Sized,
     T: alloc::borrow::ToOwned + ?Sized + 'a,
 {
-    fn digest_as<B: Buffer>(value: &alloc::borrow::Cow<'a, T>, encoder: encoding::EncodeValue<B>) {
+    fn digest_as(value: &alloc::borrow::Cow<'a, T>, encoder: encoding::EncodeValue) {
         U::digest_as(value.as_ref(), encoder)
     }
 }
@@ -315,7 +297,7 @@ macro_rules! impl_for_tuples {
         where
             $($as: DigestAs<$t>),*
         {
-            fn digest_as<Buf: Buffer>(value: &($($t,)*), encoder: encoding::EncodeValue<Buf>) {
+            fn digest_as(value: &($($t,)*), encoder: encoding::EncodeValue) {
                 #[allow(non_snake_case)]
                 let ($($t,)*) = value;
                 (

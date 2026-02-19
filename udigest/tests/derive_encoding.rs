@@ -44,10 +44,7 @@ struct Color {
     b: u16,
 }
 
-fn funny_color_encoding<B: udigest::Buffer>(
-    color: &Color,
-    encoder: udigest::encoding::EncodeValue<B>,
-) {
+fn funny_color_encoding(color: &Color, encoder: udigest::encoding::EncodeValue) {
     let mut list = encoder.encode_list().with_tag(b"funny color");
     list.add_leaf().chain(color.b.to_be_bytes());
     list.add_leaf().chain(color.g.to_be_bytes());
@@ -58,7 +55,7 @@ fn funny_color_encoding<B: udigest::Buffer>(
 struct LittleEndian;
 
 impl udigest::as_::DigestAs<u16> for LittleEndian {
-    fn digest_as<B: udigest::Buffer>(value: &u16, encoder: udigest::encoding::EncodeValue<B>) {
+    fn digest_as(value: &u16, encoder: udigest::encoding::EncodeValue) {
         encoder.encode_leaf_value(value.to_le_bytes());
     }
 }

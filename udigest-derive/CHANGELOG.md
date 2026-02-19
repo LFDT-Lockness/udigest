@@ -1,3 +1,8 @@
+## v0.5.0
+* Sync the derive macro with latest changes in `udigest` library [#25]
+
+[#25]: https://github.com/LFDT-Lockness/udigest/pull/25
+
 ## v0.4.0
 * `rename` attribute now works on enum variants as it always should have been
 * Derive macro produces an error if two fields or two enum variants have the same

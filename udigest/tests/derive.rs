@@ -87,10 +87,7 @@ pub struct StructAttrWith {
 pub struct Bar;
 
 mod encoding {
-    pub fn encode_bar<B: udigest::Buffer>(
-        _bar: &super::Bar,
-        encoder: udigest::encoding::EncodeValue<B>,
-    ) {
+    pub fn encode_bar(_bar: &super::Bar, encoder: udigest::encoding::EncodeValue) {
         let mut list = encoder.encode_list();
         list.add_leaf().chain("foo");
         list.add_leaf().chain("bar");
@@ -114,4 +111,13 @@ pub struct OptionalBytes {
     field1: Option<Vec<u8>>,
     #[udigest(as = std::collections::BTreeMap<_, udigest::Bytes>)]
     hash_map: std::collections::HashMap<String, Vec<u8>>,
+}
+
+#[derive(udigest::Digestable)]
+pub enum EnumWithDyn<'a> {
+    ProtocolName {
+        protocol_name: &'a str,
+        version: u64,
+    },
+    Custom(&'a dyn udigest::Digestable),
 }
