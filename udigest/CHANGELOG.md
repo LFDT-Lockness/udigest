@@ -1,3 +1,8 @@
+## v0.10.0
+* Split dependency-free encoding core into `udigest-encoding`
+* Re-export `udigest-encoding` from `udigest`
+* Make `digest` dependency non-optional and remove `digest` feature flag
+
 ## v0.4.0
 * Make `Digestable` trait `dyn`-compatible [#25]
 * Update hash functions to accept `&dyn Digestable` [#25]

@@ -1,0 +1,32 @@
+[package]
+name = "udigest-encoding"
+version = "0.10.0"
+edition.workspace = true
+license = "MIT OR Apache-2.0"
+description = "Dependency-free unambiguous encoding core for udigest"
+repository = "https://github.com/LFDT-Lockness/udigest"
+categories = ["algorithms", "cryptography", "no-std", "no-std::no-alloc"]
+keywords = ["hashing", "unambiguous-encoding"]
+readme = "README.md"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[lib]
+doctest = false
+
+[dependencies]
+udigest-derive = { version = "=0.5.0", path = "../udigest-derive", optional = true }
+
+[features]
+default = ["std", "inline-struct"]
+
+std = ["alloc"]
+alloc = []
+derive = ["dep:udigest-derive"]
+inline-struct = []
+
+[[test]]
+name = "derive"
+required-features = ["std", "derive"]

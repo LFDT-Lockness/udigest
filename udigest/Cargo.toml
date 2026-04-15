@@ -1,6 +1,6 @@
 [package]
 name = "udigest"
-version = "0.4.0"
+version = "0.10.0"
 edition.workspace = true
 license = "MIT OR Apache-2.0"
 description = "Unambiguously digest structured data"
@@ -16,9 +16,8 @@ rustdoc-args = ["--cfg", "docsrs"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-digest = { version = "0.10", default-features = false, optional = true }
-
-udigest-derive = { version = "=0.5.0", path = "../udigest-derive", optional = true }
+digest = { version = "0.10", default-features = false }
+udigest-encoding = { version = "=0.10.0", path = "../udigest-encoding", default-features = false }
 
 [dev-dependencies]
 hex = "0.4"
@@ -30,22 +29,20 @@ blake2 = "0.10"
 trybuild = "1"
 
 [features]
-default = ["digest", "std", "inline-struct"]
+default = ["std", "inline-struct"]
 
-std = ["alloc"]
-alloc = []
-derive = ["dep:udigest-derive"]
-
-digest = ["dep:digest"]
-inline-struct = []
+std = ["udigest-encoding/std"]
+alloc = ["udigest-encoding/alloc"]
+derive = ["udigest-encoding/derive"]
+inline-struct = ["udigest-encoding/inline-struct"]
 
 [[test]]
 name = "derive"
-required-features = ["std", "derive", "digest"]
+required-features = ["std", "derive"]
 
 [[test]]
 name = "derive_encoding"
-required-features = ["std", "derive", "digest"]
+required-features = ["std", "derive"]
 
 [[test]]
 name = "derive_compile_fails"
@@ -53,11 +50,11 @@ required-features = ["std", "derive"]
 
 [[test]]
 name = "deterministic_hash"
-required-features = ["derive", "digest"]
+required-features = ["derive"]
 
 [[test]]
 name = "diff_structs_same_encoding"
-required-features = ["derive", "digest"]
+required-features = ["derive"]
 
 [[test]]
 name = "inline_struct"
@@ -69,5 +66,5 @@ required-features = ["derive", "inline-struct"]
 
 [[example]]
 name = "derivation"
-required-features = ["std", "derive", "digest"]
+required-features = ["std", "derive"]
 

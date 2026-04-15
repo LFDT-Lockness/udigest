@@ -41,13 +41,13 @@ a better usage experience in Rust. The details of encoding format can be found i
 `encoding` module.
 
 ### Features
-* `digest` enables support of hash functions that implement `digest` traits \
-  If feature is not enabled, the crate is still usable via `Digestable` trait that
-  generically implements unambiguous encoding
 * `inline-struct` is required to use `inline_struct!` macro
 * `std` implements `Digestable` trait for types in standard library
 * `alloc` implements `Digestable` trait for type in `alloc` crate
 * `derive` enables `Digestable` proc macro
+
+`udigest` depends on `digest` directly and provides hash helpers (`hash`, `hash_vof`, etc.).
+If you need dependency-free encoding primitives only, use `udigest-encoding` crate.
 
 ### Join us in Discord!
 Feel free to reach out to us [in Discord](https://discordapp.com/channels/905194001349627914/1285268686147424388)!

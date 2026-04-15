@@ -185,35 +185,12 @@ pub const BIGLEN: u8 = 6;
 
 /// A buffer that exposes append-only access
 ///
-/// Out of box, it's implemented for any hashing algorithm that implements
-/// [`digest::Digest`]
+/// Hashing wrappers for `digest` live in `udigest` crate.
 pub trait Buffer {
     /// Appends `bytes` to the buffer
     ///
     /// Method must never panic
     fn write(&mut self, bytes: &[u8]);
-}
-
-/// Wraps [`digest::Digest`] and implements [`Buffer`]
-#[cfg(feature = "digest")]
-pub struct BufferDigest<D: digest::Digest>(pub D);
-
-#[cfg(feature = "digest")]
-impl<D: digest::Digest> Buffer for BufferDigest<D> {
-    fn write(&mut self, bytes: &[u8]) {
-        self.0.update(bytes)
-    }
-}
-
-/// Wraps [`digest::Update`] and implements [`Buffer`]
-#[cfg(feature = "digest")]
-pub struct BufferUpdate<D: digest::Update>(pub D);
-
-#[cfg(feature = "digest")]
-impl<D: digest::Update> Buffer for BufferUpdate<D> {
-    fn write(&mut self, bytes: &[u8]) {
-        self.0.update(bytes)
-    }
 }
 
 /// Encodes a value

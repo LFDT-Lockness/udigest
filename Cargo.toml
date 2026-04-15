@@ -2,6 +2,7 @@
 resolver = "3"
 
 members = [
+  "udigest-encoding",
   "udigest",
   "udigest-derive",
 ]
