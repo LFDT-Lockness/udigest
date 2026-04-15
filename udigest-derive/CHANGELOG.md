@@ -1,3 +1,7 @@
+## v0.6.0
+* Infer root crate path for `Digestable` derive from invocation/dependencies, supporting both
+  `udigest` and `udigest-encoding` usage without explicit `#[udigest(root = ...)]`
+
 ## v0.5.0
 * Sync the derive macro with latest changes in `udigest` library [#25]
 

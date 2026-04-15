@@ -65,8 +65,14 @@ pub mod isolated {
     mod udigest {}
 
     #[derive(udigest2::Digestable)]
-    #[udigest(root = udigest2)]
     pub struct Foo {
+        bar: String,
+    }
+
+    use udigest2::Digestable;
+
+    #[derive(Digestable)]
+    pub struct Foo2 {
         bar: String,
     }
 }

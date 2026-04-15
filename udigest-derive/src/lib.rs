@@ -19,7 +19,8 @@ pub fn digestable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 fn digestable_inner(input: syn::DeriveInput) -> Result<proc_macro2::TokenStream> {
-    let mut container_attrs = ContainerAttrs::default();
+    let inferred_root_path = infer_root_path(&input);
+    let mut container_attrs = ContainerAttrs::new(inferred_root_path);
 
     // Parse container-level attributes
     for attr in input.attrs {
@@ -54,6 +55,155 @@ fn digestable_inner(input: syn::DeriveInput) -> Result<proc_macro2::TokenStream>
         syn::Data::Enum(e) => process_enum(&container_attrs, &input.ident, &input.generics, &e),
         syn::Data::Union(u) => Err(Error::new(u.union_token.span, "unions are not supported")),
     }
+}
+
+fn infer_root_path(_input: &syn::DeriveInput) -> attrs::RootPath {
+    let candidates = ["udigest", "udigest-encoding"]
+        .into_iter()
+        .filter_map(infer_root_from_dependency)
+        .collect::<Vec<_>>();
+
+    if let Some(candidate) = candidates.iter().find(|candidate| candidate.is_itself) {
+        return candidate.path.clone();
+    }
+
+    let dependency_optionality = read_dependency_optionality();
+    if let Some(candidate) = candidates
+        .iter()
+        .find(|candidate| candidate.is_active_dependency(dependency_optionality.as_ref()))
+    {
+        return candidate.path.clone();
+    }
+
+    candidates
+        .first()
+        .map(|candidate| candidate.path.clone())
+        .unwrap_or_else(default_root_path)
+}
+
+struct RootCandidate {
+    path: attrs::RootPath,
+    alias: Option<String>,
+    is_itself: bool,
+}
+
+impl RootCandidate {
+    fn is_active_dependency(
+        &self,
+        dependency_optionality: Option<&std::collections::HashMap<String, bool>>,
+    ) -> bool {
+        if self.is_itself {
+            return true;
+        }
+
+        let Some(alias) = &self.alias else {
+            return true;
+        };
+
+        if is_dependency_feature_enabled(alias) {
+            return true;
+        }
+
+        let is_optional = dependency_optionality
+            .and_then(|optionality| optionality.get(alias))
+            .copied()
+            .unwrap_or(false);
+        !is_optional
+    }
+}
+
+fn infer_root_from_dependency(dep: &'static str) -> Option<RootCandidate> {
+    let dep_to_ident = |name: &str| name.replace('-', "_");
+
+    match proc_macro_crate::crate_name(dep).ok()? {
+        proc_macro_crate::FoundCrate::Itself => Some(RootCandidate {
+            path: syn::parse_str::<syn::Path>(&format!("::{}", dep_to_ident(dep))).ok()?,
+            alias: None,
+            is_itself: true,
+        }),
+        proc_macro_crate::FoundCrate::Name(name) => Some(RootCandidate {
+            path: syn::parse_str::<syn::Path>(&format!("::{name}")).ok()?,
+            alias: Some(name),
+            is_itself: false,
+        }),
+    }
+}
+
+fn is_dependency_feature_enabled(alias: &str) -> bool {
+    let feature_name = alias.replace('-', "_").to_ascii_uppercase();
+    std::env::var_os(format!("CARGO_FEATURE_{feature_name}")).is_some()
+}
+
+fn read_dependency_optionality() -> Option<std::collections::HashMap<String, bool>> {
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").ok()?;
+    let manifest_path = std::path::Path::new(&manifest_dir).join("Cargo.toml");
+    let manifest = std::fs::read_to_string(manifest_path).ok()?;
+
+    parse_dependency_optionality(&manifest).ok()
+}
+
+fn parse_dependency_optionality(
+    manifest: &str,
+) -> std::result::Result<std::collections::HashMap<String, bool>, toml_edit::TomlError> {
+    let doc = manifest.parse::<toml_edit::DocumentMut>()?;
+    let mut optionality = std::collections::HashMap::new();
+
+    for dep_table_name in ["dependencies", "dev-dependencies", "build-dependencies"] {
+        if let Some(dep_table) = doc.get(dep_table_name) {
+            collect_dependency_table_optionality(dep_table, &mut optionality);
+        }
+    }
+
+    if let Some(targets) = doc.get("target").and_then(toml_edit::Item::as_table_like) {
+        for (_, target_item) in targets.iter() {
+            let Some(target_table) = target_item.as_table_like() else {
+                continue;
+            };
+            for dep_table_name in ["dependencies", "dev-dependencies", "build-dependencies"] {
+                if let Some(dep_table) = target_table.get(dep_table_name) {
+                    collect_dependency_table_optionality(dep_table, &mut optionality);
+                }
+            }
+        }
+    }
+
+    Ok(optionality)
+}
+
+fn collect_dependency_table_optionality(
+    dep_table: &toml_edit::Item,
+    optionality: &mut std::collections::HashMap<String, bool>,
+) {
+    let Some(dep_table) = dep_table.as_table_like() else {
+        return;
+    };
+
+    for (dep_name, dep_item) in dep_table.iter() {
+        optionality.insert(dep_name.to_owned(), dependency_is_optional(dep_item));
+    }
+}
+
+fn dependency_is_optional(dep_item: &toml_edit::Item) -> bool {
+    if let Some(inline_table) = dep_item.as_inline_table() {
+        return inline_table
+            .get("optional")
+            .and_then(toml_edit::Value::as_bool)
+            .unwrap_or(false);
+    }
+
+    if let Some(dep_table) = dep_item.as_table_like() {
+        return dep_table
+            .get("optional")
+            .and_then(toml_edit::Item::as_value)
+            .and_then(toml_edit::Value::as_bool)
+            .unwrap_or(false);
+    }
+
+    false
+}
+
+fn default_root_path() -> attrs::RootPath {
+    syn::parse_quote!(::udigest)
 }
 
 fn process_enum(
@@ -130,22 +280,17 @@ fn process_field(root_path: &attrs::RootPath, index: u32, field: &syn::Field) ->
     // same_ty = <root_path>::as_::Same
     let same_ty = {
         let mut root = root_path.clone();
-        root.extend([
-            syn::Ident::new("as_", root_path.span()),
-            syn::Ident::new("Same", root_path.span()),
-        ]);
+        root.segments.push(syn::PathSegment {
+            ident: syn::Ident::new("as_", root_path.span()),
+            arguments: syn::PathArguments::None,
+        });
+        root.segments.push(syn::PathSegment {
+            ident: syn::Ident::new("Same", root_path.span()),
+            arguments: syn::PathArguments::None,
+        });
         syn::Type::Path(syn::TypePath {
             qself: None,
-            path: syn::Path {
-                leading_colon: None,
-                segments: root
-                    .into_iter()
-                    .map(|ident| syn::PathSegment {
-                        ident,
-                        arguments: syn::PathArguments::None,
-                    })
-                    .collect(),
-            },
+            path: root,
         })
     };
     let mut field_attrs = FieldAttrs::default();
@@ -834,23 +979,83 @@ fn assert_no_duplicates(
     quote!(#(#assertions)*)
 }
 
-#[derive(Default)]
 struct ContainerAttrs {
     root: Option<attrs::Root>,
     tag: Option<attrs::Tag>,
     bound: Option<attrs::Bound>,
+    inferred_root_path: attrs::RootPath,
 }
 
 impl ContainerAttrs {
+    pub fn new(inferred_root_path: attrs::RootPath) -> Self {
+        Self {
+            root: None,
+            tag: None,
+            bound: None,
+            inferred_root_path,
+        }
+    }
+
     pub fn get_root_path(&self) -> attrs::RootPath {
         self.root
             .as_ref()
             .map(|root| root.path.clone())
-            .unwrap_or_else(|| {
-                [syn::Ident::new("udigest", proc_macro2::Span::call_site())]
-                    .into_iter()
-                    .collect()
-            })
+            .unwrap_or_else(|| self.inferred_root_path.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_dependency_optionality_handles_string_and_inline_table_deps() {
+        let manifest = r#"
+[package]
+name = "demo"
+version = "0.1.0"
+
+[dependencies]
+udigest = "0.10"
+udigest-encoding = { version = "0.10", optional = true }
+serde = { version = "1", default-features = false }
+"#;
+
+        let optionality = parse_dependency_optionality(manifest).unwrap();
+        assert_eq!(optionality.get("udigest"), Some(&false));
+        assert_eq!(optionality.get("udigest-encoding"), Some(&true));
+        assert_eq!(optionality.get("serde"), Some(&false));
+    }
+
+    #[test]
+    fn parse_dependency_optionality_handles_table_deps() {
+        let manifest = r#"
+[package]
+name = "demo"
+version = "0.1.0"
+
+[dependencies.udigest-encoding]
+version = "0.10"
+optional = true
+"#;
+
+        let optionality = parse_dependency_optionality(manifest).unwrap();
+        assert_eq!(optionality.get("udigest-encoding"), Some(&true));
+    }
+
+    #[test]
+    fn parse_dependency_optionality_handles_target_specific_deps() {
+        let manifest = r#"
+[package]
+name = "demo"
+version = "0.1.0"
+
+[target.'cfg(windows)'.dependencies]
+udigest-encoding = { version = "0.10", optional = true }
+"#;
+
+        let optionality = parse_dependency_optionality(manifest).unwrap();
+        assert_eq!(optionality.get("udigest-encoding"), Some(&true));
     }
 }
 

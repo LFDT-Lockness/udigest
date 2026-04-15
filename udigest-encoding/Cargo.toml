@@ -17,7 +17,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 doctest = false
 
 [dependencies]
-udigest-derive = { version = "=0.5.0", path = "../udigest-derive", optional = true }
+udigest-derive = { version = "=0.6.0", path = "../udigest-derive", optional = true }
 
 [features]
 default = ["std", "inline-struct"]

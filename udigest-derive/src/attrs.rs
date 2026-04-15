@@ -1,5 +1,3 @@
-use syn::ext::IdentExt;
-
 pub mod kw {
     syn::custom_keyword!(root);
     syn::custom_keyword!(tag);
@@ -67,13 +65,13 @@ pub struct Root {
     pub path: RootPath,
 }
 
-pub type RootPath = syn::punctuated::Punctuated<syn::Ident, syn::Token![::]>;
+pub type RootPath = syn::Path;
 
 impl syn::parse::Parse for Root {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let root = input.parse::<kw::root>()?;
         let _eq = input.parse::<syn::Token![=]>()?;
-        let path = RootPath::parse_separated_nonempty_with(input, syn::Ident::parse_any)?;
+        let path = input.parse::<RootPath>()?;
 
         Ok(Self { root, _eq, path })
     }
