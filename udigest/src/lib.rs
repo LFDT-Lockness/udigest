@@ -1,8 +1,4 @@
-//! Unambiguously digest structured data.
-//!
-//! This crate re-exports all encoding APIs from `udigest-encoding` and provides
-//! hash helper functions powered by the `digest` crate.
-
+#![doc = include_str!("../../README.md")]
 #![no_std]
 #![forbid(missing_docs)]
 #![cfg_attr(not(test), forbid(unused_crate_dependencies))]

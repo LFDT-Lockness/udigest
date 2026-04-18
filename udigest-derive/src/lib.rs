@@ -19,8 +19,8 @@ pub fn digestable(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 }
 
 fn digestable_inner(input: syn::DeriveInput) -> Result<proc_macro2::TokenStream> {
-    let inferred_root_path = infer_root_path(&input);
-    let mut container_attrs = ContainerAttrs::new(inferred_root_path);
+    let inferred_paths = infer_paths(&input);
+    let mut container_attrs = ContainerAttrs::new(inferred_paths);
 
     // Parse container-level attributes
     for attr in input.attrs {
@@ -57,149 +57,99 @@ fn digestable_inner(input: syn::DeriveInput) -> Result<proc_macro2::TokenStream>
     }
 }
 
-fn infer_root_path(_input: &syn::DeriveInput) -> attrs::RootPath {
+fn infer_paths(input: &syn::DeriveInput) -> InferredPaths {
+    if let Some(derive_trait_path) = infer_trait_path_from_derive(input) {
+        let inferred_root_path = derive_trait_path_to_root_path(&derive_trait_path)
+            .unwrap_or_else(infer_root_path_from_dependencies);
+        return InferredPaths {
+            inferred_root_path,
+            inferred_trait_path: derive_trait_path,
+        };
+    }
+
+    let inferred_root_path = infer_root_path_from_dependencies();
+    let inferred_trait_path = root_path_to_trait_path(&inferred_root_path);
+    InferredPaths {
+        inferred_root_path,
+        inferred_trait_path,
+    }
+}
+
+fn infer_root_path_from_dependencies() -> attrs::RootPath {
     let candidates = ["udigest", "udigest-encoding"]
         .into_iter()
         .filter_map(infer_root_from_dependency)
         .collect::<Vec<_>>();
 
-    if let Some(candidate) = candidates.iter().find(|candidate| candidate.is_itself) {
-        return candidate.path.clone();
-    }
-
-    let dependency_optionality = read_dependency_optionality();
-    if let Some(candidate) = candidates
-        .iter()
-        .find(|candidate| candidate.is_active_dependency(dependency_optionality.as_ref()))
-    {
-        return candidate.path.clone();
+    if let Some((path, _)) = candidates.iter().find(|(_, is_itself)| *is_itself) {
+        return path.clone();
     }
 
     candidates
         .first()
-        .map(|candidate| candidate.path.clone())
+        .map(|(path, _)| path.clone())
         .unwrap_or_else(default_root_path)
 }
 
-struct RootCandidate {
-    path: attrs::RootPath,
-    alias: Option<String>,
-    is_itself: bool,
-}
-
-impl RootCandidate {
-    fn is_active_dependency(
-        &self,
-        dependency_optionality: Option<&std::collections::HashMap<String, bool>>,
-    ) -> bool {
-        if self.is_itself {
-            return true;
+fn infer_trait_path_from_derive(input: &syn::DeriveInput) -> Option<attrs::RootPath> {
+    for attr in &input.attrs {
+        if !attr.path().is_ident("derive") {
+            continue;
         }
 
-        let Some(alias) = &self.alias else {
-            return true;
-        };
+        let derive_paths = attr
+            .parse_args_with(
+                syn::punctuated::Punctuated::<syn::Path, syn::Token![,]>::parse_terminated,
+            )
+            .ok()?;
 
-        if is_dependency_feature_enabled(alias) {
-            return true;
-        }
-
-        let is_optional = dependency_optionality
-            .and_then(|optionality| optionality.get(alias))
-            .copied()
-            .unwrap_or(false);
-        !is_optional
-    }
-}
-
-fn infer_root_from_dependency(dep: &'static str) -> Option<RootCandidate> {
-    let dep_to_ident = |name: &str| name.replace('-', "_");
-
-    match proc_macro_crate::crate_name(dep).ok()? {
-        proc_macro_crate::FoundCrate::Itself => Some(RootCandidate {
-            path: syn::parse_str::<syn::Path>(&format!("::{}", dep_to_ident(dep))).ok()?,
-            alias: None,
-            is_itself: true,
-        }),
-        proc_macro_crate::FoundCrate::Name(name) => Some(RootCandidate {
-            path: syn::parse_str::<syn::Path>(&format!("::{name}")).ok()?,
-            alias: Some(name),
-            is_itself: false,
-        }),
-    }
-}
-
-fn is_dependency_feature_enabled(alias: &str) -> bool {
-    let feature_name = alias.replace('-', "_").to_ascii_uppercase();
-    std::env::var_os(format!("CARGO_FEATURE_{feature_name}")).is_some()
-}
-
-fn read_dependency_optionality() -> Option<std::collections::HashMap<String, bool>> {
-    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").ok()?;
-    let manifest_path = std::path::Path::new(&manifest_dir).join("Cargo.toml");
-    let manifest = std::fs::read_to_string(manifest_path).ok()?;
-
-    parse_dependency_optionality(&manifest).ok()
-}
-
-fn parse_dependency_optionality(
-    manifest: &str,
-) -> std::result::Result<std::collections::HashMap<String, bool>, toml_edit::TomlError> {
-    let doc = manifest.parse::<toml_edit::DocumentMut>()?;
-    let mut optionality = std::collections::HashMap::new();
-
-    for dep_table_name in ["dependencies", "dev-dependencies", "build-dependencies"] {
-        if let Some(dep_table) = doc.get(dep_table_name) {
-            collect_dependency_table_optionality(dep_table, &mut optionality);
-        }
-    }
-
-    if let Some(targets) = doc.get("target").and_then(toml_edit::Item::as_table_like) {
-        for (_, target_item) in targets.iter() {
-            let Some(target_table) = target_item.as_table_like() else {
-                continue;
-            };
-            for dep_table_name in ["dependencies", "dev-dependencies", "build-dependencies"] {
-                if let Some(dep_table) = target_table.get(dep_table_name) {
-                    collect_dependency_table_optionality(dep_table, &mut optionality);
-                }
+        for path in derive_paths {
+            if path
+                .segments
+                .last()
+                .map(|segment| segment.ident == "Digestable")
+                .unwrap_or(false)
+            {
+                return Some(path);
             }
         }
     }
 
-    Ok(optionality)
+    None
 }
 
-fn collect_dependency_table_optionality(
-    dep_table: &toml_edit::Item,
-    optionality: &mut std::collections::HashMap<String, bool>,
-) {
-    let Some(dep_table) = dep_table.as_table_like() else {
-        return;
-    };
-
-    for (dep_name, dep_item) in dep_table.iter() {
-        optionality.insert(dep_name.to_owned(), dependency_is_optional(dep_item));
+fn derive_trait_path_to_root_path(path: &attrs::RootPath) -> Option<attrs::RootPath> {
+    if path.segments.len() < 2 {
+        return None;
     }
+
+    let mut root = path.clone();
+    root.segments.pop();
+    Some(root)
 }
 
-fn dependency_is_optional(dep_item: &toml_edit::Item) -> bool {
-    if let Some(inline_table) = dep_item.as_inline_table() {
-        return inline_table
-            .get("optional")
-            .and_then(toml_edit::Value::as_bool)
-            .unwrap_or(false);
-    }
+fn root_path_to_trait_path(root: &attrs::RootPath) -> attrs::RootPath {
+    let mut trait_path = root.clone();
+    trait_path.segments.push(syn::PathSegment {
+        ident: syn::Ident::new("Digestable", root.span()),
+        arguments: syn::PathArguments::None,
+    });
+    trait_path
+}
 
-    if let Some(dep_table) = dep_item.as_table_like() {
-        return dep_table
-            .get("optional")
-            .and_then(toml_edit::Item::as_value)
-            .and_then(toml_edit::Value::as_bool)
-            .unwrap_or(false);
-    }
+fn infer_root_from_dependency(dep: &'static str) -> Option<(attrs::RootPath, bool)> {
+    let dep_to_ident = |name: &str| name.replace('-', "_");
 
-    false
+    match proc_macro_crate::crate_name(dep).ok()? {
+        proc_macro_crate::FoundCrate::Itself => Some((
+            syn::parse_str::<syn::Path>(&format!("::{}", dep_to_ident(dep))).ok()?,
+            true,
+        )),
+        proc_macro_crate::FoundCrate::Name(name) => Some((
+            syn::parse_str::<syn::Path>(&format!("::{name}")).ok()?,
+            false,
+        )),
+    }
 }
 
 fn default_root_path() -> attrs::RootPath {
@@ -536,6 +486,7 @@ fn generate_impl_for_enum(
     enum_variants: &[Variant],
 ) -> Result<proc_macro2::TokenStream> {
     let root_path = attrs.get_root_path();
+    let trait_path = attrs.get_trait_path();
     let (impl_generics, ty_generics, _) = enum_generics.split_for_impl();
 
     let where_clause = make_where_clause(attrs, enum_generics)?;
@@ -639,7 +590,7 @@ fn generate_impl_for_enum(
     };
 
     Ok(quote! {
-        impl #impl_generics #root_path::Digestable for #enum_name #ty_generics #where_clause {
+        impl #impl_generics #trait_path for #enum_name #ty_generics #where_clause {
             fn unambiguously_encode(&self, encoder: #root_path::encoding::EncodeValue)
             {
                 let mut #encoder_var = encoder.encode_enum();
@@ -661,6 +612,7 @@ fn generate_impl_for_struct(
     struct_fields: &[Field],
 ) -> Result<proc_macro2::TokenStream> {
     let root_path = attrs.get_root_path();
+    let trait_path = attrs.get_trait_path();
     let (impl_generics, ty_generics, _) = struct_generics.split_for_impl();
 
     let where_clause = make_where_clause(attrs, struct_generics)?;
@@ -691,7 +643,7 @@ fn generate_impl_for_struct(
         assert_no_duplicates_in_struct_field_names(&attrs.get_root_path(), struct_fields);
 
     Ok(quote! {
-        impl #impl_generics #root_path::Digestable for #struct_name #ty_generics #where_clause {
+        impl #impl_generics #trait_path for #struct_name #ty_generics #where_clause {
             fn unambiguously_encode(&self, encoder: #root_path::encoding::EncodeValue)
             {
                 let mut #encoder_var = encoder.encode_struct();
@@ -738,7 +690,7 @@ fn make_where_clause(
     attrs: &ContainerAttrs,
     generics: &syn::Generics,
 ) -> Result<proc_macro2::TokenStream> {
-    let root_path = attrs.get_root_path();
+    let trait_path = attrs.get_trait_path();
     let predicates = generics.where_clause.as_ref().map(|w| &w.predicates);
 
     let generated_predicates = match &attrs.bound {
@@ -761,7 +713,7 @@ fn make_where_clause(
         None => {
             let generated_predicates = generics.type_params().map(|g| {
                 let ident = &g.ident;
-                quote! {#ident: #root_path::Digestable,}
+                quote! {#ident: #trait_path,}
             });
             quote! { #(#generated_predicates)* }
         }
@@ -983,16 +935,18 @@ struct ContainerAttrs {
     root: Option<attrs::Root>,
     tag: Option<attrs::Tag>,
     bound: Option<attrs::Bound>,
+    inferred_trait_path: attrs::RootPath,
     inferred_root_path: attrs::RootPath,
 }
 
 impl ContainerAttrs {
-    pub fn new(inferred_root_path: attrs::RootPath) -> Self {
+    pub fn new(inferred_paths: InferredPaths) -> Self {
         Self {
             root: None,
             tag: None,
             bound: None,
-            inferred_root_path,
+            inferred_trait_path: inferred_paths.inferred_trait_path,
+            inferred_root_path: inferred_paths.inferred_root_path,
         }
     }
 
@@ -1002,6 +956,18 @@ impl ContainerAttrs {
             .map(|root| root.path.clone())
             .unwrap_or_else(|| self.inferred_root_path.clone())
     }
+
+    pub fn get_trait_path(&self) -> attrs::RootPath {
+        self.root
+            .as_ref()
+            .map(|root| root_path_to_trait_path(&root.path))
+            .unwrap_or_else(|| self.inferred_trait_path.clone())
+    }
+}
+
+struct InferredPaths {
+    inferred_root_path: attrs::RootPath,
+    inferred_trait_path: attrs::RootPath,
 }
 
 #[cfg(test)]
@@ -1009,53 +975,42 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parse_dependency_optionality_handles_string_and_inline_table_deps() {
-        let manifest = r#"
-[package]
-name = "demo"
-version = "0.1.0"
+    fn infer_trait_path_from_derive_supports_qualified_path() {
+        let input: syn::DeriveInput = syn::parse_quote! {
+            #[derive(Clone, udigest_encoding::Digestable)]
+            struct Demo;
+        };
 
-[dependencies]
-udigest = "0.10"
-udigest-encoding = { version = "0.10", optional = true }
-serde = { version = "1", default-features = false }
-"#;
-
-        let optionality = parse_dependency_optionality(manifest).unwrap();
-        assert_eq!(optionality.get("udigest"), Some(&false));
-        assert_eq!(optionality.get("udigest-encoding"), Some(&true));
-        assert_eq!(optionality.get("serde"), Some(&false));
+        let trait_path = infer_trait_path_from_derive(&input).unwrap();
+        assert_eq!(trait_path.segments.len(), 2);
+        assert_eq!(trait_path.segments[0].ident, "udigest_encoding");
+        assert_eq!(trait_path.segments[1].ident, "Digestable");
     }
 
     #[test]
-    fn parse_dependency_optionality_handles_table_deps() {
-        let manifest = r#"
-[package]
-name = "demo"
-version = "0.1.0"
+    fn infer_trait_path_from_derive_supports_unqualified_path() {
+        let input: syn::DeriveInput = syn::parse_quote! {
+            #[derive(Digestable)]
+            struct Demo;
+        };
 
-[dependencies.udigest-encoding]
-version = "0.10"
-optional = true
-"#;
-
-        let optionality = parse_dependency_optionality(manifest).unwrap();
-        assert_eq!(optionality.get("udigest-encoding"), Some(&true));
+        let trait_path = infer_trait_path_from_derive(&input).unwrap();
+        assert_eq!(trait_path.segments.len(), 1);
+        assert_eq!(trait_path.segments[0].ident, "Digestable");
     }
 
     #[test]
-    fn parse_dependency_optionality_handles_target_specific_deps() {
-        let manifest = r#"
-[package]
-name = "demo"
-version = "0.1.0"
+    fn derive_trait_path_to_root_path_handles_qualified_path() {
+        let path: syn::Path = syn::parse_quote!(::udigest::Digestable);
+        let root = derive_trait_path_to_root_path(&path).unwrap();
+        assert_eq!(root.segments.len(), 1);
+        assert_eq!(root.segments[0].ident, "udigest");
+    }
 
-[target.'cfg(windows)'.dependencies]
-udigest-encoding = { version = "0.10", optional = true }
-"#;
-
-        let optionality = parse_dependency_optionality(manifest).unwrap();
-        assert_eq!(optionality.get("udigest-encoding"), Some(&true));
+    #[test]
+    fn derive_trait_path_to_root_path_handles_unqualified_path() {
+        let path: syn::Path = syn::parse_quote!(Digestable);
+        assert!(derive_trait_path_to_root_path(&path).is_none());
     }
 }
 

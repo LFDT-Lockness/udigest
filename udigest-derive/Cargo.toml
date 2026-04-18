@@ -17,4 +17,3 @@ syn = "2"
 quote = "1"
 proc-macro2 = "1"
 proc-macro-crate = "3"
-toml_edit = { version = "0.25", default-features = false, features = ["parse"] }
