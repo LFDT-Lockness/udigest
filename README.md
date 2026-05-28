@@ -2,6 +2,7 @@
 [![Docs](https://docs.rs/udigest/badge.svg)](https://docs.rs/udigest)
 [![Crates io](https://img.shields.io/crates/v/udigest.svg)](https://crates.io/crates/udigest)
 [![Discord](https://img.shields.io/discord/905194001349627914?logo=discord&logoColor=ffffff&label=Discord)](https://discordapp.com/channels/905194001349627914/1285268686147424388)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/LFDT-Lockness/udigest/badge)](https://scorecard.dev/viewer/?uri=github.com/LFDT-Lockness/udigest)
 
 ## Unambiguously digest structured data
 
